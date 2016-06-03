@@ -26,16 +26,12 @@ public class Client {
 		int port = 2222;// Integer.parseInt(scanner.nextLine());
 		socket = new Socket(serverAdress, port);
 
-		System.out.println("Successfully connected to: " + serverAdress);
 		output = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
 		input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-		System.out.print("Enter your username: ");
-		username = scanner.nextLine();
-		output.write(username);
-		output.newLine();
 	}
 
 	public void run() {
+		initializeUsername();
 		ClientMessageListener listener = new ClientMessageListener(input);
 		listener.start();
 
@@ -48,6 +44,20 @@ public class Client {
 			}
 
 			sendMessage(message, receiver);
+		}
+	}
+
+	private void initializeUsername() {
+		System.out.println("Successfully connected to: " + serverAdress);
+		System.out.print("Enter your username: ");
+		username = scanner.nextLine();
+		try {
+			output.write(username);
+			output.newLine();
+			output.flush();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 	}
 

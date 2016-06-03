@@ -30,7 +30,7 @@ public class ClientThread extends Thread {
 	public void run() {
 		try {
 			String username = input.readLine();
-			messageCenter.sendUsername(username);
+			messageCenter.registerUser(username, client);
 			usernameAttched = username;
 		} catch (IOException e1) {
 			return;

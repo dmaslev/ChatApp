@@ -31,6 +31,17 @@ public class MessageCenter {
 			e.printStackTrace();
 		}
 	}
+	
+	public void sendMessagetoOneUser(Socket ct, String message) {
+		try {
+			BufferedWriter out = new BufferedWriter(new OutputStreamWriter(ct.getOutputStream()));
+			out.write(message);
+			out.newLine();
+			out.flush();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
 
 	synchronized public void sendMessageToAllUsers(String message) {
 		for (String client : clients.keySet()) {
@@ -47,8 +58,8 @@ public class MessageCenter {
 		}
 	}
 
-	synchronized public void sendUsername(String name) {
-		server.addUser(name);
+	synchronized public void registerUser(String name, Socket client) {
+		server.addUser(name, client);
 	}
 
 	synchronized public boolean isUserConnected(String username) {

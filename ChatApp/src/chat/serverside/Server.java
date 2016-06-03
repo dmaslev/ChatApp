@@ -92,9 +92,53 @@ public class Server {
 		System.out.println("__________________________");
 	}
 
-	public void addUser(String name) {
-		clients.put(name, socket);
-		User connectedUser = new User(socket, name);
-		connectedUsers.add(connectedUser);
+	public void addUser(String name, Socket client) {
+		int resultCode = validateUsername(name);
+		sendMessageToClient(client, resultCode, name);
+		
+		if (resultCode == 0) {
+			clients.put(name, socket);
+			User connectedUser = new User(socket, name);
+			connectedUsers.add(connectedUser);
+		}
+	}
+
+	private void sendMessageToClient(Socket ct, int successfullyLoggedIn, String name) {
+		String message = new String();
+
+		switch (successfullyLoggedIn) {
+		case 0: 
+			message = "Successfully logged in as " + name;
+			break;
+		case 1:
+			message = name + " is already in use. Please select a new one.";
+			break;
+		case 2:
+			message = "Username must be at least 3 characters long.";
+			break;
+		case 3:
+			message = name + " can not be used. Please select a new one.";
+			break;
+		default:
+			break;
+		}
+		
+		messageCenter.sendMessagetoOneUser(ct, message);
+	}
+
+	private int validateUsername(String name) {
+		int resultCode;
+		if (this.clients.containsKey(name)) {
+			resultCode = 1;
+		} else if (name.length() < 3) {
+			resultCode = 2;
+		} else if (name.equalsIgnoreCase("all") || name.equalsIgnoreCase("admin")
+				|| name.equalsIgnoreCase("administrator")) {
+			resultCode = 3;
+		} else {
+			resultCode = 0;
+		}
+
+		return resultCode;
 	}
 }
