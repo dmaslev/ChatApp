@@ -10,15 +10,15 @@ public class ClientThread extends Thread {
 	private MessageCenter messageCenter;
 	private BufferedReader input;
 	private String usernameAttched;
+	private boolean keepRunning;
 
 	public ClientThread(Socket socket, MessageCenter messageCenter) {
 		this.client = socket;
 		this.messageCenter = messageCenter;
-
+		this.keepRunning = true;
 		try {
 			this.input = new BufferedReader(new InputStreamReader(client.getInputStream()));
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
@@ -30,37 +30,37 @@ public class ClientThread extends Thread {
 	public void run() {
 		try {
 			String username = input.readLine();
-			messageCenter.registerUser(username, client);
+			messageCenter.registerUser(username, client, this);
 			usernameAttched = username;
 		} catch (IOException e1) {
 			return;
 		}
 
-		while (true) {
-			// if (client.isClosed()) {
-			// break;
-			// }
-
+		while (keepRunning) {
 			try {
 				String messageReceived = input.readLine();
 				String recipient = input.readLine();
 
 				if (!messageReceived.equals(null)) {
 					if (recipient.equalsIgnoreCase("all")) {
-						messageCenter.sendMessageToAllUsers(messageReceived);
+						messageCenter.sendMessageToAllUsers(usernameAttched, messageReceived);
 					} else {
 						boolean isUserConnected = messageCenter.isUserConnected(recipient);
 						if (isUserConnected) {
-							messageCenter.sendMessagetoOneUser(recipient, messageReceived);
+							messageCenter.sendMessagetoOneUser(recipient, messageReceived, usernameAttched);
 						} else {
 							String message = recipient + " is not connected.";
-							messageCenter.sendMessagetoOneUser(usernameAttched, message);
+							messageCenter.sendMessagetoOneUser(usernameAttched, message, usernameAttched);
 						}
 					}
 				}
 			} catch (IOException e) {
-				break;
+				
 			}
 		}
+	}
+	
+	public void disconnect() {
+		keepRunning = false;
 	}
 }

@@ -6,6 +6,7 @@ import java.util.Scanner;
 public class ServerInputManager extends Thread {
 	private Server server;
 	private Scanner reader;
+	private boolean isServerInputManagerOn;
 
 	public ServerInputManager(Server server, Scanner reader) {
 		this.setServer(server);
@@ -21,18 +22,24 @@ public class ServerInputManager extends Thread {
 	}
 
 	public void run() {
-		while (true) {
+		isServerInputManagerOn = true;
+		while (isServerInputManagerOn) {
 			try {
 				String line = reader.nextLine();
 				if (line.equalsIgnoreCase("disconnect")) {
 					server.stopServer();
 				} else if (line.equalsIgnoreCase("listall")) {
 					server.listConnectedUsers();
+				} else {
+					System.out.println("Invalid command.");
 				}
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
+	}
+	
+	public void disconnect() {
+		isServerInputManagerOn = false;
 	}
 }

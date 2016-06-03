@@ -16,7 +16,7 @@ public class MessageCenter {
 		this.clients = this.server.getClients();
 	}
 
-	synchronized public void sendMessagetoOneUser(String client, String message) {
+	synchronized public void sendMessagetoOneUser(String client, String message, String sender) {
 		User user = clients.get(client);
 		if (user == null) {
 			return;
@@ -25,6 +25,7 @@ public class MessageCenter {
 		try {
 			Socket ct = user.getSocket();
 			BufferedWriter out = new BufferedWriter(new OutputStreamWriter(ct.getOutputStream()));
+			message = sender + ": " + message;
 			out.write(message);
 			out.newLine();
 			out.flush();
@@ -44,13 +45,18 @@ public class MessageCenter {
 		}
 	}
 
-	synchronized public void sendMessageToAllUsers(String message) {
+	synchronized public void sendMessageToAllUsers(String sender, String message) {
 		for (String client : clients.keySet()) {
+			if (client == sender) {
+				continue;
+			}
+			
 			User user = clients.get(client);
 			Socket ct = user.getSocket();
 
 			try {
 				BufferedWriter out = new BufferedWriter(new OutputStreamWriter(ct.getOutputStream()));
+				message = sender + ": " + message;
 				out.write(message);
 				out.newLine();
 				out.flush();
@@ -60,8 +66,8 @@ public class MessageCenter {
 		}
 	}
 
-	synchronized public void registerUser(String name, Socket client) {
-		server.addUser(name, client);
+	synchronized public void registerUser(String name, Socket client, ClientThread messageListener) {
+		server.addUser(name, client, messageListener);
 	}
 
 	synchronized public boolean isUserConnected(String username) {

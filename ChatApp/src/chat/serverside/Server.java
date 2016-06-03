@@ -8,15 +8,16 @@ import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
-import java.util.Vector;
 
 public class Server {
 	private ServerSocket serverSocket;
 	private final int PORT = 2222;
 	private Scanner reader;
+	private boolean isServerOn;
 	private Socket socket;
 	private Map<String, User> clients;
 	private MessageCenter messageCenter;
+	ServerInputManager serverInput;
 
 	public void run() {
 		try {
@@ -35,8 +36,9 @@ public class Server {
 		}
 
 		messageCenter = new MessageCenter(this);
-		ServerInputManager serverInput = new ServerInputManager(this, reader);
+		serverInput = new ServerInputManager(this, reader);
 		serverInput.start();
+		isServerOn = true;
 		waitForConnections();
 	}
 
@@ -58,40 +60,48 @@ public class Server {
 	}
 
 	private void waitForConnections() {
-		while (true) {
+		while (isServerOn) {
 			try {
 				socket = serverSocket.accept();
+				System.out.println("test");
 				System.out.println(socket.getInetAddress() + " connected");
 
 				ClientThread client = new ClientThread(socket, messageCenter);
 				client.start();
 
 			} catch (IOException e) {
-				e.printStackTrace();
-				break;
+				System.out.println("Server successfully disconnected.");
 			}
 		}
 	}
 
 	public void stopServer() throws IOException {
+		isServerOn = false;
+		serverInput.disconnect();
 		serverSocket.close();
+		for (String user : clients.keySet()) {
+			ClientThread client = clients.get(user).getClientThread();
+			client.disconnect();
+		}
 	}
 
 	public void listConnectedUsers() {
-		System.out.println("Connected Users:");
-		for (String user : this.clients.keySet()) {
-			System.out.println(clients.get(user).toString());
+		if (this.clients.keySet().isEmpty()) {
+			System.out.println("There are no connected users at the moment.");
+		} else {
+			System.out.println("Connected Users:");
+			for (String user : this.clients.keySet()) {
+				System.out.println(clients.get(user).toString());
+			}
 		}
-
-		System.out.println("__________________________");
 	}
 
-	public void addUser(String name, Socket client) {
+	public void addUser(String name, Socket client, ClientThread messageListener) {
 		int resultCode = validateUsername(name);
 		sendMessageToClient(client, resultCode, name);
-		
+
 		if (resultCode == 0) {
-			User connectedUser = new User(socket, name);
+			User connectedUser = new User(socket, name, messageListener);
 			clients.put(name, connectedUser);
 		}
 	}
@@ -100,7 +110,7 @@ public class Server {
 		String message = new String();
 
 		switch (successfullyLoggedIn) {
-		case 0: 
+		case 0:
 			message = "Successfully logged in as " + name;
 			break;
 		case 1:
@@ -115,7 +125,7 @@ public class Server {
 		default:
 			break;
 		}
-		
+
 		messageCenter.sendMessagetoOneUser(ct, message);
 	}
 

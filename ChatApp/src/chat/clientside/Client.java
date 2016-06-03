@@ -41,6 +41,7 @@ public class Client {
 			String receiver = scanner.nextLine();
 			if (socket.isClosed()) {
 				System.out.println("Server disconnected");
+				System.exit(0);
 			}
 
 			sendMessage(message, receiver);
@@ -68,7 +69,6 @@ public class Client {
 
 	private void sendMessage(String message, String receiver) {
 		try {
-			message = this.username + ": " + message;
 			output.write(message);
 			output.newLine();
 			output.write(receiver);
