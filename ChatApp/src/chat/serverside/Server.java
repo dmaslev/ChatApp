@@ -15,8 +15,7 @@ public class Server {
 	private final int PORT = 2222;
 	private Scanner reader;
 	private Socket socket;
-	private Vector<User> connectedUsers;
-	private Map<String, Socket> clients;
+	private Map<String, User> clients;
 	private MessageCenter messageCenter;
 
 	public void run() {
@@ -27,7 +26,6 @@ public class Server {
 		}
 
 		reader = new Scanner(System.in);
-		connectedUsers = new Vector<User>();
 		clients = new HashMap<>();
 
 		try {
@@ -42,11 +40,7 @@ public class Server {
 		waitForConnections();
 	}
 
-	public Vector<User> getAllUsers() {
-		return this.connectedUsers;
-	}
-
-	public Map<String, Socket> getClients() {
+	public Map<String, User> getClients() {
 		return this.clients;
 	}
 
@@ -85,8 +79,8 @@ public class Server {
 
 	public void listConnectedUsers() {
 		System.out.println("Connected Users:");
-		for (User user : this.connectedUsers) {
-			System.out.println(user.toString());
+		for (String user : this.clients.keySet()) {
+			System.out.println(clients.get(user).toString());
 		}
 
 		System.out.println("__________________________");
@@ -97,9 +91,8 @@ public class Server {
 		sendMessageToClient(client, resultCode, name);
 		
 		if (resultCode == 0) {
-			clients.put(name, socket);
 			User connectedUser = new User(socket, name);
-			connectedUsers.add(connectedUser);
+			clients.put(name, connectedUser);
 		}
 	}
 

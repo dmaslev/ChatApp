@@ -9,7 +9,7 @@ import java.util.Map;
 public class MessageCenter {
 
 	private Server server;
-	private Map<String, Socket> clients;
+	private Map<String, User> clients;
 
 	public MessageCenter(Server server) {
 		this.server = server;
@@ -17,12 +17,13 @@ public class MessageCenter {
 	}
 
 	synchronized public void sendMessagetoOneUser(String client, String message) {
-		Socket ct = clients.get(client);
-		if (ct == null) {
+		User user = clients.get(client);
+		if (user == null) {
 			return;
 		}
 
 		try {
+			Socket ct = user.getSocket();
 			BufferedWriter out = new BufferedWriter(new OutputStreamWriter(ct.getOutputStream()));
 			out.write(message);
 			out.newLine();
@@ -32,7 +33,7 @@ public class MessageCenter {
 		}
 	}
 	
-	public void sendMessagetoOneUser(Socket ct, String message) {
+	synchronized public void sendMessagetoOneUser(Socket ct, String message) {
 		try {
 			BufferedWriter out = new BufferedWriter(new OutputStreamWriter(ct.getOutputStream()));
 			out.write(message);
@@ -45,7 +46,8 @@ public class MessageCenter {
 
 	synchronized public void sendMessageToAllUsers(String message) {
 		for (String client : clients.keySet()) {
-			Socket ct = clients.get(client);
+			User user = clients.get(client);
+			Socket ct = user.getSocket();
 
 			try {
 				BufferedWriter out = new BufferedWriter(new OutputStreamWriter(ct.getOutputStream()));
@@ -63,8 +65,8 @@ public class MessageCenter {
 	}
 
 	synchronized public boolean isUserConnected(String username) {
-		Socket ct = clients.get(username);
-		if (ct == null) {
+		User client = clients.get(username);
+		if (client == null) {
 			return false;
 		}
 
