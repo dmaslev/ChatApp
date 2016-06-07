@@ -7,22 +7,28 @@ public class User {
 	private Date connectedDate;
 	private String username;
 	private String adress;
-	private ClientThread messageListener;
+	private ClientListener messageListener;
+	private ClientSender messageSender;
 
-	public User(Socket socket, String username, ClientThread messageListener) {
+	public User(Socket socket, String username, ClientSender messageSender, ClientListener messageListener) {
 		this.socket = socket;
 		this.adress = socket.getLocalAddress().toString();
 		this.username = username;
 		this.connectedDate = new Date();
 		this.messageListener = messageListener;
+		this.messageSender = messageSender;
 	}
 	
 	public Socket getSocket() {
 		return this.socket;
 	}
 	
-	public ClientThread getClientThread() {
+	public ClientListener getClientListener() {
 		return this.messageListener;
+	}
+
+	public ClientSender getClientSender() {
+		return this.messageSender;
 	}
 	
 	public String getUsername(){

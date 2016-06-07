@@ -2,21 +2,26 @@ package chat.clientside;
 import java.io.BufferedReader;
 import java.io.IOException;
 
-public class ClientMessageListener extends Thread {
+public class ClientInputListener extends Thread {
 	private BufferedReader listener;
 	
-	public ClientMessageListener(BufferedReader input) {
+	public ClientInputListener(BufferedReader input) {
 		this.listener = input;
 	}
-
+	
 	public void run() {
-		while(true) {
+		while(!isInterrupted()) {
 			try {
 				String message = listener.readLine();
+				if (message == null) {
+					//Lost connection
+					break;
+				}
+				
 				display(message);
 			} catch (IOException e) {
-				System.out.println("Server disconnected");
-				break;
+				System.out.println("Connection lost.");
+				interrupt();
 			}
 		}
 	}

@@ -36,6 +36,7 @@ public class Server {
 		}
 
 		messageCenter = new MessageCenter(this);
+		messageCenter.start();
 		serverInput = new ServerInputManager(this, reader);
 		serverInput.start();
 		isServerOn = true;
@@ -63,12 +64,10 @@ public class Server {
 		while (isServerOn) {
 			try {
 				socket = serverSocket.accept();
-				System.out.println("test");
 				System.out.println(socket.getInetAddress() + " connected");
-
-				ClientThread client = new ClientThread(socket, messageCenter);
+				
+				ClientListener client = new ClientListener(socket, messageCenter);
 				client.start();
-
 			} catch (IOException e) {
 				System.out.println("Server successfully disconnected.");
 			}
@@ -78,11 +77,12 @@ public class Server {
 	public void stopServer() throws IOException {
 		isServerOn = false;
 		serverInput.disconnect();
-		serverSocket.close();
 		for (String user : clients.keySet()) {
-			ClientThread client = clients.get(user).getClientThread();
-			client.disconnect();
+			clients.get(user).getClientListener().disconnect();
+			clients.get(user).getClientSender().disconnect();
 		}
+		
+		serverSocket.close();
 	}
 
 	public void listConnectedUsers() {
@@ -96,14 +96,18 @@ public class Server {
 		}
 	}
 
-	public void addUser(String name, Socket client, ClientThread messageListener) {
+	public void addUser(String name, Socket client, ClientSender messageSender, ClientListener messageListener) {
 		int resultCode = validateUsername(name);
 		sendMessageToClient(client, resultCode, name);
 
 		if (resultCode == 0) {
-			User connectedUser = new User(socket, name, messageListener);
+			User connectedUser = new User(socket, name, messageSender, messageListener);
 			clients.put(name, connectedUser);
 		}
+	}
+	
+	public void removeUser(String username) {
+		this.clients.remove(username);
 	}
 
 	private void sendMessageToClient(Socket ct, int successfullyLoggedIn, String name) {

@@ -32,7 +32,7 @@ public class Client {
 
 	public void run() {
 		initializeUsername();
-		ClientMessageListener listener = new ClientMessageListener(input);
+		ClientInputListener listener = new ClientInputListener(input);
 		listener.start();
 
 		while (true) {
@@ -41,7 +41,6 @@ public class Client {
 			String receiver = scanner.nextLine();
 			if (socket.isClosed()) {
 				System.out.println("Server disconnected");
-				System.exit(0);
 			}
 
 			sendMessage(message, receiver);
@@ -57,7 +56,6 @@ public class Client {
 			output.newLine();
 			output.flush();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}

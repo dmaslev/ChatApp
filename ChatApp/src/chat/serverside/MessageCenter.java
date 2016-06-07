@@ -4,34 +4,19 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.net.Socket;
+import java.util.LinkedList;
 import java.util.Map;
 
-public class MessageCenter {
+public class MessageCenter extends Thread{
 
 	private Server server;
 	private Map<String, User> clients;
+	private LinkedList<Message> messagesQueue;
 
 	public MessageCenter(Server server) {
 		this.server = server;
 		this.clients = this.server.getClients();
-	}
-
-	synchronized public void sendMessagetoOneUser(String client, String message, String sender) {
-		User user = clients.get(client);
-		if (user == null) {
-			return;
-		}
-
-		try {
-			Socket ct = user.getSocket();
-			BufferedWriter out = new BufferedWriter(new OutputStreamWriter(ct.getOutputStream()));
-			message = sender + ": " + message;
-			out.write(message);
-			out.newLine();
-			out.flush();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		this.messagesQueue = new LinkedList<Message>();
 	}
 	
 	synchronized public void sendMessagetoOneUser(Socket ct, String message) {
@@ -45,29 +30,16 @@ public class MessageCenter {
 		}
 	}
 
-	synchronized public void sendMessageToAllUsers(String sender, String message) {
-		for (String client : clients.keySet()) {
-			if (client == sender) {
-				continue;
-			}
-			
-			User user = clients.get(client);
-			Socket ct = user.getSocket();
-
-			try {
-				BufferedWriter out = new BufferedWriter(new OutputStreamWriter(ct.getOutputStream()));
-				message = sender + ": " + message;
-				out.write(message);
-				out.newLine();
-				out.flush();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
+	synchronized public void registerUser(String name, Socket client, ClientSender messageSender, ClientListener messageListener) {
+		server.addUser(name, client, messageSender, messageListener);
 	}
-
-	synchronized public void registerUser(String name, Socket client, ClientThread messageListener) {
-		server.addUser(name, client, messageListener);
+	
+	public void removeUser(String usernameAttched) {
+		server.removeUser(usernameAttched);
+	}
+	
+	public Map<String, User> getClients() {
+		return this.clients;
 	}
 
 	synchronized public boolean isUserConnected(String username) {
@@ -77,5 +49,35 @@ public class MessageCenter {
 		}
 
 		return true;
+	}
+	
+	public synchronized void addMessageToQueue(Message message) {
+		messagesQueue.add(message);
+		notify();
+	}
+
+	private synchronized Message getNextMessageFromQueue() {
+		while (messagesQueue.size() == 0) {
+			try {
+				wait();
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+		
+		Message message = messagesQueue.getFirst();
+		messagesQueue.removeFirst();
+		return message;
+	}
+
+	private void sendMessage(Message message) {
+		clients.get(message.getSender()).getClientSender().addMessage(message);
+	}
+	
+	public void run() {
+		while (true) {
+			Message message = getNextMessageFromQueue();
+			sendMessage(message);
+		}
 	}
 }

@@ -5,14 +5,14 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.Socket;
 
-public class ClientThread extends Thread {
+public class ClientListener extends Thread {
 	private Socket client;
 	private MessageCenter messageCenter;
 	private BufferedReader input;
 	private String usernameAttched;
 	private boolean keepRunning;
 
-	public ClientThread(Socket socket, MessageCenter messageCenter) {
+	public ClientListener(Socket socket, MessageCenter messageCenter) {
 		this.client = socket;
 		this.messageCenter = messageCenter;
 		this.keepRunning = true;
@@ -30,7 +30,10 @@ public class ClientThread extends Thread {
 	public void run() {
 		try {
 			String username = input.readLine();
-			messageCenter.registerUser(username, client, this);
+			ClientSender clientSender = new ClientSender(client, messageCenter);
+			clientSender.start();
+
+			messageCenter.registerUser(username, client, clientSender, this);
 			usernameAttched = username;
 		} catch (IOException e1) {
 			return;
@@ -40,27 +43,24 @@ public class ClientThread extends Thread {
 			try {
 				String messageReceived = input.readLine();
 				String recipient = input.readLine();
-
-				if (!messageReceived.equals(null)) {
-					if (recipient.equalsIgnoreCase("all")) {
-						messageCenter.sendMessageToAllUsers(usernameAttched, messageReceived);
-					} else {
-						boolean isUserConnected = messageCenter.isUserConnected(recipient);
-						if (isUserConnected) {
-							messageCenter.sendMessagetoOneUser(recipient, messageReceived, usernameAttched);
-						} else {
-							String message = recipient + " is not connected.";
-							messageCenter.sendMessagetoOneUser(usernameAttched, message, usernameAttched);
-						}
-					}
+				if (messageReceived == null) {
+					break;
 				}
-			} catch (IOException e) {
 				
+				Message message = new Message(messageReceived, recipient, usernameAttched);
+				messageCenter.addMessageToQueue(message);
+				
+			} catch (IOException e) {
+				//Connection problem
 			}
 		}
+		
+		System.out.println("test");
+		messageCenter.removeUser(usernameAttched);
 	}
 	
-	public void disconnect() {
+	public void disconnect() throws IOException {
 		keepRunning = false;
+		client.close();
 	}
 }
