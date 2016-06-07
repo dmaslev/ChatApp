@@ -19,13 +19,13 @@ public class Server {
 	private MessageCenter messageCenter;
 	ServerInputManager serverInput;
 
-	public void run() {
+	public void run() throws IOException {
 		try {
 			serverSocket = new ServerSocket(PORT);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-
+		
 		reader = new Scanner(System.in);
 		clients = new HashMap<>();
 
@@ -60,7 +60,7 @@ public class Server {
 		System.out.println("Enter \"listall\" to see all connected users or \"disconnect\" to stop the server.");
 	}
 
-	private void waitForConnections() {
+	private void waitForConnections() throws IOException {
 		while (isServerOn) {
 			try {
 				socket = serverSocket.accept();
@@ -69,17 +69,25 @@ public class Server {
 				ClientListener client = new ClientListener(socket, messageCenter);
 				client.start();
 			} catch (IOException e) {
-				System.out.println("Server successfully disconnected.");
+				
 			}
 		}
+		
+		System.out.println("Server successfully disconnected.");
 	}
 
 	public void stopServer() throws IOException {
 		isServerOn = false;
 		serverInput.disconnect();
+		messageCenter.interrupt();
+		
 		for (String user : clients.keySet()) {
-			clients.get(user).getClientListener().disconnect();
-			clients.get(user).getClientSender().disconnect();
+			try {
+				clients.get(user).getClientListener().disconnect();
+				clients.get(user).getClientSender().interrupt();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 		}
 		
 		serverSocket.close();
@@ -90,8 +98,14 @@ public class Server {
 			System.out.println("There are no connected users at the moment.");
 		} else {
 			System.out.println("Connected Users:");
-			for (String user : this.clients.keySet()) {
-				System.out.println(clients.get(user).toString());
+			for (String username : this.clients.keySet()) {
+				User client = clients.get(username);
+				if (!client.getSocket().isConnected()) {
+					removeUser(username);
+					continue;
+				}
+				
+				System.out.println(client.toString());
 			}
 		}
 	}

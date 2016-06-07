@@ -61,12 +61,10 @@ public class MessageCenter extends Thread{
 			try {
 				wait();
 			} catch (InterruptedException e) {
-				e.printStackTrace();
 			}
 		}
 		
-		Message message = messagesQueue.getFirst();
-		messagesQueue.removeFirst();
+		Message message = messagesQueue.poll();
 		return message;
 	}
 

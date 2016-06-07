@@ -24,17 +24,18 @@ public class ServerInputManager extends Thread {
 	public void run() {
 		isServerInputManagerOn = true;
 		while (isServerInputManagerOn) {
-			try {
-				String line = reader.nextLine();
-				if (line.equalsIgnoreCase("disconnect")) {
+			String line = reader.nextLine();
+			if (line.equalsIgnoreCase("disconnect")) {
+				try {
 					server.stopServer();
-				} else if (line.equalsIgnoreCase("listall")) {
-					server.listConnectedUsers();
-				} else {
-					System.out.println("Invalid command.");
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
 				}
-			} catch (IOException e) {
-				e.printStackTrace();
+			} else if (line.equalsIgnoreCase("listall")) {
+				server.listConnectedUsers();
+			} else {
+				System.out.println("Invalid command.");
 			}
 		}
 	}

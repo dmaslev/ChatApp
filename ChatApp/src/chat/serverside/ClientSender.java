@@ -11,7 +11,6 @@ public class ClientSender extends Thread {
 	private LinkedList<Message> messages;
 	private MessageCenter messageCenter;
 	private Socket client;
-	private BufferedWriter output;
 	private boolean keepRunning;
 
 	public ClientSender(Socket client, MessageCenter messageCenter) {
@@ -19,11 +18,6 @@ public class ClientSender extends Thread {
 		this.messageCenter = messageCenter;
 		this.messages = new LinkedList<>();
 		this.keepRunning = true;
-		try {
-			this.output = new BufferedWriter(new OutputStreamWriter(client.getOutputStream()));
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
 	}
 	
 	public synchronized void addMessage(Message message) {
@@ -47,7 +41,6 @@ public class ClientSender extends Thread {
 				Message message = getNextMessageFromQueue();
 				sendMessage(message);
 			} catch (InterruptedException e) {
-				e.printStackTrace();
 			}
 		}
 	}
@@ -129,10 +122,5 @@ public class ClientSender extends Thread {
 				e.printStackTrace();
 			}
 		}
-	}
-	
-	public void disconnect() throws IOException {
-		keepRunning = false;
-		client.close();
 	}
 }

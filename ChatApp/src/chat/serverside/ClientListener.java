@@ -16,11 +16,6 @@ public class ClientListener extends Thread {
 		this.client = socket;
 		this.messageCenter = messageCenter;
 		this.keepRunning = true;
-		try {
-			this.input = new BufferedReader(new InputStreamReader(client.getInputStream()));
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
 	}
 
 	public Socket getSocket() {
@@ -29,6 +24,8 @@ public class ClientListener extends Thread {
 
 	public void run() {
 		try {
+			this.input = new BufferedReader(new InputStreamReader(client.getInputStream()));
+
 			String username = input.readLine();
 			ClientSender clientSender = new ClientSender(client, messageCenter);
 			clientSender.start();
@@ -51,11 +48,11 @@ public class ClientListener extends Thread {
 				messageCenter.addMessageToQueue(message);
 				
 			} catch (IOException e) {
+				keepRunning = false;
 				//Connection problem
 			}
 		}
 		
-		System.out.println("test");
 		messageCenter.removeUser(usernameAttched);
 	}
 	
