@@ -16,47 +16,46 @@ public class Client {
 	private Scanner scanner;
 	private String serverAdress;
 	private String username;
+	private boolean keepRunning;
+	private String stopCommand;
+	private ClientInputListener listener;
 
-	public Client() throws UnknownHostException, IOException {
+	public Client() {
 		scanner = new Scanner(System.in);
 		System.out.print("Host adress: ");
 		serverAdress = scanner.nextLine();
-
-		// System.out.print("Server port: ");
-		int port = 2222;// Integer.parseInt(scanner.nextLine());
-		socket = new Socket(serverAdress, port);
-
-		output = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
-		input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+		this.keepRunning = true;
+		this.stopCommand = "/stop";
 	}
 
 	public void run() {
-		initializeUsername();
-		ClientInputListener listener = new ClientInputListener(input);
-		listener.start();
+		// System.out.print("Server port: ");
+		int port = 2222;// Integer.parseInt(scanner.nextLine());
+		try {
+			socket = new Socket(serverAdress, port);
+		} catch (UnknownHostException e1) {
+			e1.printStackTrace();
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
+		try {
+			output = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
+			input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 
-		while (true) {
+		System.out.println("Successfully connected to: " + serverAdress);
+		listener = new ClientInputListener(input, this);
+		listener.initializeUsername(scanner);
+		listener.start();
+		
+		while (keepRunning) {
 			String message = scanner.nextLine();
 			System.out.print("Enter a username or \"all\" to send to all connected users: ");
 			String receiver = scanner.nextLine();
-			if (socket.isClosed()) {
-				System.out.println("Server disconnected");
-			}
-
+			
 			sendMessage(message, receiver);
-		}
-	}
-
-	private void initializeUsername() {
-		System.out.println("Successfully connected to: " + serverAdress);
-		System.out.print("Enter your username: ");
-		username = scanner.nextLine();
-		try {
-			output.write(username);
-			output.newLine();
-			output.flush();
-		} catch (IOException e) {
-			e.printStackTrace();
 		}
 	}
 
@@ -65,19 +64,32 @@ public class Client {
 		client.run();
 	}
 
-	private void sendMessage(String message, String receiver) {
+	public void sendMessage(String message, String receiver) {
 		try {
 			output.write(message);
 			output.newLine();
 			output.write(receiver);
 			output.newLine();
-			output.flush();
+			if (message.equalsIgnoreCase(stopCommand) || receiver.equalsIgnoreCase(stopCommand)) {
+				stopClient();
+			} else {
+				output.flush();
+			}
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}
 
+	private void stopClient() {
+		keepRunning = false;
+		listener.shutDown();
+	}
+
 	public String getUsername() {
 		return this.username;
+	}
+
+	public void setUsername(String name) {
+		this.username = name;
 	}
 }

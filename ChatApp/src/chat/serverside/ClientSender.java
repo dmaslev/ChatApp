@@ -12,35 +12,44 @@ public class ClientSender extends Thread {
 	private MessageCenter messageCenter;
 	private Socket client;
 	private boolean keepRunning;
+	private Server messageServer;
 
-	public ClientSender(Socket client, MessageCenter messageCenter) {
+	public ClientSender(Socket client, MessageCenter messageCenter, Server messageServer) {
 		this.client = client;
 		this.messageCenter = messageCenter;
 		this.messages = new LinkedList<>();
 		this.keepRunning = true;
+		this.messageServer = messageServer;
 	}
-	
+
 	public synchronized void addMessage(Message message) {
 		messages.add(message);
 		notify();
 	}
-	
+
 	private synchronized Message getNextMessageFromQueue() throws InterruptedException {
 		while (messages.size() == 0) {
 			wait();
 		}
-		
-		Message message = messages.getFirst();
-		messages.removeFirst();
+
+		Message message = messages.pop();
 		return message;
 	}
-	
+
 	public void run() {
 		while (keepRunning) {
 			try {
 				Message message = getNextMessageFromQueue();
-				sendMessage(message);
+				if (message.getIsSystemMessage()) {
+					if (message.getMessageText().equalsIgnoreCase("shutdown")) {
+						keepRunning = false;
+					}
+				} else {
+					sendMessage(message);
+				}
 			} catch (InterruptedException e) {
+				keepRunning = false;
+				e.printStackTrace();
 			}
 		}
 	}
@@ -49,11 +58,11 @@ public class ClientSender extends Thread {
 		String sender = message.getSender();
 		String messageText = message.getMessageText();
 		String recipient = message.getRecipient();
-		
+
 		if (recipient.equalsIgnoreCase("all")) {
 			sendMessageToAllUsers(sender, messageText);
 		} else {
-			boolean isUserConnected = messageCenter.isUserConnected(recipient);
+			boolean isUserConnected = messageServer.isUserConnected(recipient);
 			if (isUserConnected) {
 				sendMessagetoOneUser(recipient, messageText, sender);
 			} else {
@@ -64,16 +73,8 @@ public class ClientSender extends Thread {
 	}
 
 	private void sendMessagetoOneUser(String sender, String errorMessage) {
-		Map<String, User> clients = messageCenter.getClients();
-		User user = clients.get(sender);
-		
-		if (user == null) {
-			return;
-		}
-
 		try {
-			Socket ct = user.getSocket();
-			BufferedWriter out = new BufferedWriter(new OutputStreamWriter(ct.getOutputStream()));
+			BufferedWriter out = new BufferedWriter(new OutputStreamWriter(client.getOutputStream()));
 			out.write(errorMessage);
 			out.newLine();
 			out.flush();
@@ -85,7 +86,7 @@ public class ClientSender extends Thread {
 	private void sendMessagetoOneUser(String recipient, String messageText, String sender) {
 		Map<String, User> clients = messageCenter.getClients();
 		User user = clients.get(recipient);
-		
+
 		if (user == null) {
 			return;
 		}
@@ -108,7 +109,7 @@ public class ClientSender extends Thread {
 			if (client == sender) {
 				continue;
 			}
-			
+
 			User user = clients.get(client);
 			Socket ct = user.getSocket();
 
@@ -122,5 +123,10 @@ public class ClientSender extends Thread {
 				e.printStackTrace();
 			}
 		}
+	}
+
+	public void disconnect() {
+		Message systemMessage = new Message("shutdown", "admin", "admin");
+		addMessage(systemMessage);
 	}
 }

@@ -66,30 +66,27 @@ public class Server {
 				socket = serverSocket.accept();
 				System.out.println(socket.getInetAddress() + " connected");
 				
-				ClientListener client = new ClientListener(socket, messageCenter);
+				ClientListener client = new ClientListener(socket, messageCenter, this);
 				client.start();
 			} catch (IOException e) {
-				
+				System.out.println("Server successfully disconnected.");
 			}
 		}
-		
-		System.out.println("Server successfully disconnected.");
 	}
 
 	public void stopServer() throws IOException {
 		isServerOn = false;
-		serverInput.disconnect();
-		messageCenter.interrupt();
-		
 		for (String user : clients.keySet()) {
 			try {
+				clients.get(user).getClientSender().disconnect();
 				clients.get(user).getClientListener().disconnect();
-				clients.get(user).getClientSender().interrupt();
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
 		}
 		
+		serverInput.disconnect();
+		messageCenter.disconnect();
 		serverSocket.close();
 	}
 
@@ -100,11 +97,6 @@ public class Server {
 			System.out.println("Connected Users:");
 			for (String username : this.clients.keySet()) {
 				User client = clients.get(username);
-				if (!client.getSocket().isConnected()) {
-					removeUser(username);
-					continue;
-				}
-				
 				System.out.println(client.toString());
 			}
 		}
@@ -115,13 +107,28 @@ public class Server {
 		sendMessageToClient(client, resultCode, name);
 
 		if (resultCode == 0) {
-			User connectedUser = new User(socket, name, messageSender, messageListener);
+			User connectedUser = new User(client, name, messageSender, messageListener);
+			messageListener.setUsername(name);
 			clients.put(name, connectedUser);
 		}
 	}
 	
 	public void removeUser(String username) {
+		System.out.println(username + " disconnected.");
 		this.clients.remove(username);
+	}
+
+	synchronized public void registerUser(String name, Socket client, ClientSender messageSender, ClientListener messageListener) {
+		addUser(name, client, messageSender, messageListener);
+	}
+	
+	synchronized public boolean isUserConnected(String username) {
+		User client = clients.get(username);
+		if (client == null) {
+			return false;
+		}
+
+		return true;
 	}
 
 	private void sendMessageToClient(Socket ct, int successfullyLoggedIn, String name) {
@@ -129,7 +136,7 @@ public class Server {
 
 		switch (successfullyLoggedIn) {
 		case 0:
-			message = "Successfully logged in as " + name;
+			message = "Successfully logged in.";
 			break;
 		case 1:
 			message = name + " is already in use. Please select a new one.";
@@ -154,7 +161,7 @@ public class Server {
 		} else if (name.length() < 3) {
 			resultCode = 2;
 		} else if (name.equalsIgnoreCase("all") || name.equalsIgnoreCase("admin")
-				|| name.equalsIgnoreCase("administrator")) {
+				|| name.equalsIgnoreCase("administrator") || name.equalsIgnoreCase("/stop")) {
 			resultCode = 3;
 		} else {
 			resultCode = 0;

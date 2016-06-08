@@ -2,6 +2,7 @@ package chat.serverside;
 import java.net.Socket;
 import java.util.Date;
 
+
 public class User {
 	private Socket socket;
 	private Date connectedDate;
@@ -36,7 +37,8 @@ public class User {
 	}
 	
 	public String toString() {
-		String info = String.format("User: %s (%s), connected: %s", username, adress, connectedDate);
+		String info = "User: " + username + "(" + adress + "), connected: " + connectedDate; 
+//				String.format("User: %s (%s), connected: %s", username, adress, connectedDate);
 		return info;
 	}
 }

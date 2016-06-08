@@ -29,7 +29,7 @@ public class ServerInputManager extends Thread {
 				try {
 					server.stopServer();
 				} catch (IOException e) {
-					// TODO Auto-generated catch block
+					System.out.println("Server has already been stopped");
 					e.printStackTrace();
 				}
 			} else if (line.equalsIgnoreCase("listall")) {

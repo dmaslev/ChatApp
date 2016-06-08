@@ -12,11 +12,13 @@ public class MessageCenter extends Thread{
 	private Server server;
 	private Map<String, User> clients;
 	private LinkedList<Message> messagesQueue;
+	private boolean isServerOn;
 
 	public MessageCenter(Server server) {
 		this.server = server;
 		this.clients = this.server.getClients();
 		this.messagesQueue = new LinkedList<Message>();
+		this.isServerOn = true;
 	}
 	
 	synchronized public void sendMessagetoOneUser(Socket ct, String message) {
@@ -29,26 +31,9 @@ public class MessageCenter extends Thread{
 			e.printStackTrace();
 		}
 	}
-
-	synchronized public void registerUser(String name, Socket client, ClientSender messageSender, ClientListener messageListener) {
-		server.addUser(name, client, messageSender, messageListener);
-	}
-	
-	public void removeUser(String usernameAttched) {
-		server.removeUser(usernameAttched);
-	}
 	
 	public Map<String, User> getClients() {
 		return this.clients;
-	}
-
-	synchronized public boolean isUserConnected(String username) {
-		User client = clients.get(username);
-		if (client == null) {
-			return false;
-		}
-
-		return true;
 	}
 	
 	public synchronized void addMessageToQueue(Message message) {
@@ -61,6 +46,7 @@ public class MessageCenter extends Thread{
 			try {
 				wait();
 			} catch (InterruptedException e) {
+				e.printStackTrace();
 			}
 		}
 		
@@ -73,9 +59,20 @@ public class MessageCenter extends Thread{
 	}
 	
 	public void run() {
-		while (true) {
+		while (isServerOn) {
 			Message message = getNextMessageFromQueue();
-			sendMessage(message);
+			if (message.getIsSystemMessage()) {
+				if (message.getMessageText().equalsIgnoreCase("shutdown")) {
+					this.isServerOn = false;
+				}
+			} else {
+				sendMessage(message);
+			}
 		}
+	}
+
+	public void disconnect() {
+		Message systemMessage = new Message("shutdown", "admin", "admin");
+		addMessageToQueue(systemMessage);
 	}
 }
