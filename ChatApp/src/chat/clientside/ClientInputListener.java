@@ -25,13 +25,14 @@ public class ClientInputListener extends Thread {
 					// Lost connection
 					isConnected = false;
 					break;
-				} else if (message.equalsIgnoreCase("admin: logout")) {
-					System.out.println("test");
+				} else if (message.equalsIgnoreCase("shutdown")) {
+					System.out.println("Disconnected from server.");
+					isConnected = false;
+				} else {
+					display(message);
 				}
-
-				display(message);
 			} catch (IOException e) {
-				System.out.println("Connection lost.");
+				e.printStackTrace();
 				isConnected = false;
 			}
 		}
@@ -81,6 +82,5 @@ public class ClientInputListener extends Thread {
 	}
 
 	public void shutDown() {
-		isConnected = false;
 	}
 }

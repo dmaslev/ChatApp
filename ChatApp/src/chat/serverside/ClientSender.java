@@ -42,8 +42,9 @@ public class ClientSender extends Thread {
 				Message message = getNextMessageFromQueue();
 				if (message.getIsSystemMessage()) {
 					if (message.getMessageText().equalsIgnoreCase("shutdown")) {
+						sendMessage(message);
 						keepRunning = false;
-					}
+					} 
 				} else {
 					sendMessage(message);
 				}
@@ -94,7 +95,11 @@ public class ClientSender extends Thread {
 		try {
 			Socket ct = user.getSocket();
 			BufferedWriter out = new BufferedWriter(new OutputStreamWriter(ct.getOutputStream()));
-			messageText = sender + ": " + messageText;
+			if (!sender.equalsIgnoreCase("admin")) {
+				messageText = sender + ": " + messageText;
+			}
+			System.out.println(messageText);
+			
 			out.write(messageText);
 			out.newLine();
 			out.flush();

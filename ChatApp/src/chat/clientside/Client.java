@@ -34,8 +34,10 @@ public class Client {
 		try {
 			socket = new Socket(serverAdress, port);
 		} catch (UnknownHostException e1) {
+			System.out.println("Unable to connect to" + serverAdress);
 			e1.printStackTrace();
 		} catch (IOException e1) {
+			System.out.println("Unable to connect to" + serverAdress);
 			e1.printStackTrace();
 		}
 		try {
@@ -96,13 +98,13 @@ public class Client {
 			e.printStackTrace();
 		}
 		keepRunning = false;
-		listener.shutDown();
-		try {
-			socket.getInputStream().close();
-		} catch (IOException e) {
-			System.out.println("already closed.");
-			e.printStackTrace();
-		}
+//		listener.shutDown();
+//		try {
+//			socket.getInputStream().close();
+//		} catch (IOException e) {
+//			System.out.println("Already closed.");
+//			e.printStackTrace();
+//		}
 	}
 
 	public String getUsername() {

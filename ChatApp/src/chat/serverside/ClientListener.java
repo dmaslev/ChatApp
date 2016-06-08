@@ -13,12 +13,14 @@ public class ClientListener extends Thread {
 	private BufferedReader input;
 	private String usernameAttched;
 	private boolean keepRunning;
+	private boolean closedByUser;
 
 	public ClientListener(Socket socket, MessageCenter messageCenter, Server server) {
 		this.client = socket;
 		this.messageCenter = messageCenter;
 		this.messageServer = server;
 		this.keepRunning = true;
+		this.closedByUser = false;
 	}
 
 	public Socket getSocket() {
@@ -42,7 +44,7 @@ public class ClientListener extends Thread {
 
 				if (messageReceived.equalsIgnoreCase("admin-logout")) {
 					keepRunning = false;
-					Message systemMessage = new Message("shutdown", "admin", "admin");
+					Message systemMessage = new Message("shutdown", recipient, "admin");
 					clientSender.addMessage(systemMessage);
 				} else if (messageReceived.equalsIgnoreCase("admin-register")) {
 					messageServer.registerUser(recipient, client, clientSender, this);
@@ -51,7 +53,14 @@ public class ClientListener extends Thread {
 					messageCenter.addMessageToQueue(message);
 				}
 			} catch (IOException e) {
-				keepRunning = false;
+				if (closedByUser) {
+					//Expected behavior
+					keepRunning = false;
+				} else {
+					//Connection lost
+					e.printStackTrace();
+					keepRunning = false;
+				}
 			}
 		}
 
@@ -59,6 +68,7 @@ public class ClientListener extends Thread {
 	}
 
 	public void disconnect() throws IOException {
+		this.closedByUser = true;
 		OutputStream output = client.getOutputStream();
 		output.close();
 		input.close();
