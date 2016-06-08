@@ -28,20 +28,24 @@ public class ClientListener extends Thread {
 	public void run() {
 		try {
 			this.input = new BufferedReader(new InputStreamReader(client.getInputStream()));
-			
+
 		} catch (IOException e1) {
 			keepRunning = false;
 		}
-
+		ClientSender clientSender = new ClientSender(client, messageCenter, messageServer);
+		clientSender.start();
+		
 		while (keepRunning) {
-			ClientSender clientSender = new ClientSender(client, messageCenter, messageServer);
-			clientSender.start();
-			
 			try {
 				String messageReceived = input.readLine();
 				String recipient = input.readLine();
-				if (recipient.equalsIgnoreCase("admin")) {
-					messageServer.registerUser(messageReceived, client, clientSender, this);
+
+				if (messageReceived.equalsIgnoreCase("admin-logout")) {
+					keepRunning = false;
+					Message systemMessage = new Message("shutdown", "admin", "admin");
+					clientSender.addMessage(systemMessage);
+				} else if (messageReceived.equalsIgnoreCase("admin-register")) {
+					messageServer.registerUser(recipient, client, clientSender, this);
 				} else {
 					Message message = new Message(messageReceived, recipient, usernameAttched);
 					messageCenter.addMessageToQueue(message);
@@ -51,7 +55,7 @@ public class ClientListener extends Thread {
 			}
 		}
 
-		messageServer.removeUser(usernameAttched);
+		messageServer.removeUser(usernameAttched, client);
 	}
 
 	public void disconnect() throws IOException {

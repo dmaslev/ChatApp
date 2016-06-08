@@ -49,13 +49,22 @@ public class Client {
 		listener = new ClientInputListener(input, this);
 		listener.initializeUsername(scanner);
 		listener.start();
-		
+
 		while (keepRunning) {
 			String message = scanner.nextLine();
-			System.out.print("Enter a username or \"all\" to send to all connected users: ");
-			String receiver = scanner.nextLine();
-			
-			sendMessage(message, receiver);
+			if (message.equalsIgnoreCase(stopCommand)) {
+				stopClient();
+			} else {
+				System.out.print("Enter a username or \"all\" to send to all connected users: ");
+				String receiver = scanner.nextLine();
+				while(receiver.equalsIgnoreCase("admin")) {
+					System.out.println("You can not send messages to admin.");
+					System.out.print("Enter a username or \"all\" to send to all connected users: ");
+					receiver = scanner.nextLine();
+				}
+				
+				sendMessage(message, receiver);
+			}
 		}
 	}
 
@@ -70,19 +79,30 @@ public class Client {
 			output.newLine();
 			output.write(receiver);
 			output.newLine();
-			if (message.equalsIgnoreCase(stopCommand) || receiver.equalsIgnoreCase(stopCommand)) {
-				stopClient();
-			} else {
-				output.flush();
-			}
+			output.flush();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}
 
 	private void stopClient() {
+		try {
+			output.write("admin-logout");
+			output.newLine();
+			output.write(username);
+			output.newLine();
+			output.flush();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 		keepRunning = false;
 		listener.shutDown();
+		try {
+			socket.getInputStream().close();
+		} catch (IOException e) {
+			System.out.println("already closed.");
+			e.printStackTrace();
+		}
 	}
 
 	public String getUsername() {

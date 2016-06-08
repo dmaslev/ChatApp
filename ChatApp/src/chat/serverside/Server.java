@@ -113,7 +113,10 @@ public class Server {
 		}
 	}
 	
-	public void removeUser(String username) {
+	public void removeUser(String username, Socket client) {
+		if (username == null) {
+			username = client.getInetAddress().toString();
+		}
 		System.out.println(username + " disconnected.");
 		this.clients.remove(username);
 	}

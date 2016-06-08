@@ -8,7 +8,7 @@ public class ClientInputListener extends Thread {
 	private BufferedReader listener;
 	private Client client;
 	private boolean isConnected;
-	String username;
+	private String username;
 
 	public ClientInputListener(BufferedReader input, Client client) {
 		this.client = client;
@@ -25,6 +25,8 @@ public class ClientInputListener extends Thread {
 					// Lost connection
 					isConnected = false;
 					break;
+				} else if (message.equalsIgnoreCase("admin: logout")) {
+					System.out.println("test");
 				}
 
 				display(message);
@@ -38,11 +40,12 @@ public class ClientInputListener extends Thread {
 	public void initializeUsername(Scanner scanner) {
 		System.out.print("Enter your username: ");
 		username = scanner.nextLine();
-		while(!validateUsername(username)) {
+		while (!validateUsername(username)) {
+			System.out.print("Enter your username: ");
 			username = scanner.nextLine();
 		}
-		
-		client.sendMessage(username, "admin");
+
+		client.sendMessage("admin-register", username);
 		String result;
 		try {
 			result = listener.readLine();
@@ -55,10 +58,10 @@ public class ClientInputListener extends Thread {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		
+
 		client.setUsername(username);
 	}
-	
+
 	private boolean validateUsername(String name) {
 		boolean validUsername = true;
 		if (name.length() < 3) {
@@ -72,7 +75,7 @@ public class ClientInputListener extends Thread {
 
 		return validUsername;
 	}
-	
+
 	private void display(String message) {
 		System.out.println(message);
 	}
