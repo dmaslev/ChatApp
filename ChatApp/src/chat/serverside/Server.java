@@ -1,6 +1,8 @@
 package chat.serverside;
 
+import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -76,8 +78,11 @@ public class Server {
 
 	public void stopServer() throws IOException {
 		isServerOn = false;
-		for (String user : clients.keySet()) {
-			clients.get(user).getClientSender().disconnect(false, user);
+		for (String username : clients.keySet()) {
+			User user = clients.get(username);
+			if (user != null) {
+				user.getClientSender().disconnect(false, username);
+			}
 		}
 		
 		serverInput.disconnect();
@@ -129,7 +134,7 @@ public class Server {
 		return true;
 	}
 
-	private void sendMessageToClient(Socket ct, int successfullyLoggedIn, String name) {
+	synchronized private void sendMessageToClient(Socket ct, int successfullyLoggedIn, String name) {
 		String message = new String();
 
 		switch (successfullyLoggedIn) {
@@ -149,7 +154,14 @@ public class Server {
 			break;
 		}
 
-		messageCenter.sendMessagetoOneUser(ct, message);
+		try {
+			BufferedWriter out = new BufferedWriter(new OutputStreamWriter(ct.getOutputStream()));
+			out.write(message);
+			out.newLine();
+			out.flush();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 	private int validateUsername(String name) {
@@ -166,5 +178,10 @@ public class Server {
 		}
 
 		return resultCode;
+	}
+
+	public void disconnectUser(String name) {
+		User user = clients.get(name);
+		user.getClientSender().disconnect(false, name);
 	}
 }

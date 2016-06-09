@@ -2,7 +2,6 @@ package chat.clientside;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.util.Scanner;
 
 public class ClientInputListener extends Thread {
 	private BufferedReader listener;
@@ -31,22 +30,34 @@ public class ClientInputListener extends Thread {
 					client.sendMessage("shutdown", username);
 					isConnected = false;
 					client.stopScanner();
-				}else {
+				} else {
 					display(message);
 				}
 			} catch (IOException e) {
-				e.printStackTrace();
+				System.out.println("Lost connection with server.");
 				isConnected = false;
 			}
 		}
 	}
 
-	public void initializeUsername(Scanner scanner) {
+	/**
+	 * Reads a usernamer in String format and validates it. If the validation
+	 * fails recursively calls the method until the validation is passed.
+	 * 
+	 * @param scanner
+	 *            BufferedReader for reading the input
+	 */
+	public void initializeUsername(BufferedReader scanner) {
 		System.out.print("Enter your username: ");
-		username = scanner.nextLine();
-		while (!validateUsername(username)) {
-			System.out.print("Enter your username: ");
-			username = scanner.nextLine();
+		try {
+			username = scanner.readLine();
+			while (!validateUsername(username)) {
+				System.out.print("Enter your username: ");
+				username = scanner.readLine();
+			}
+		} catch (IOException e1) {
+			// Input reader has been closed
+			e1.printStackTrace();
 		}
 
 		client.sendMessage("admin-register", username);
@@ -66,6 +77,11 @@ public class ClientInputListener extends Thread {
 		client.setUsername(username);
 	}
 
+	/**
+	 * Accepts a username, checks if it is a valid username and prints a error message.
+	 * @param name A username to be validated.
+	 * @return Returns false if the validation fails and true otherwise.
+	 */
 	private boolean validateUsername(String name) {
 		boolean validUsername = true;
 		if (name.length() < 3) {
@@ -80,10 +96,11 @@ public class ClientInputListener extends Thread {
 		return validUsername;
 	}
 
+	/**
+	 * Accepts a string and displays it to the client.
+	 * @param message A message to be displayed
+	 */
 	private void display(String message) {
 		System.out.println(message);
-	}
-
-	public void shutDown() {
 	}
 }

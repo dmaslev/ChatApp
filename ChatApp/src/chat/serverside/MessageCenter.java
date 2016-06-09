@@ -21,26 +21,23 @@ public class MessageCenter extends Thread{
 		this.isServerOn = true;
 	}
 	
-	synchronized public void sendMessagetoOneUser(Socket ct, String message) {
-		try {
-			BufferedWriter out = new BufferedWriter(new OutputStreamWriter(ct.getOutputStream()));
-			out.write(message);
-			out.newLine();
-			out.flush();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
-	
 	public Map<String, User> getClients() {
 		return this.clients;
 	}
 	
+	/**
+	 * Adds a message to the queue.
+	 * @param message The message to be added.
+	 */
 	public synchronized void addMessageToQueue(Message message) {
 		messagesQueue.add(message);
 		notify();
 	}
 
+	/**
+	 * 
+	 * @return First message in the queue.
+	 */
 	private synchronized Message getNextMessageFromQueue() {
 		while (messagesQueue.size() == 0) {
 			try {

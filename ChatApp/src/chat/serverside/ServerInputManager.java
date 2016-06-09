@@ -32,6 +32,9 @@ public class ServerInputManager extends Thread {
 					System.out.println("Server has already been stopped");
 					e.printStackTrace();
 				}
+			} else if (line.startsWith("remove: ")) {
+				String name = line.substring(8);
+				server.disconnectUser(name);
 			} else if (line.equalsIgnoreCase("listall")) {
 				server.listConnectedUsers();
 			} else {
@@ -39,7 +42,7 @@ public class ServerInputManager extends Thread {
 			}
 		}
 	}
-	
+
 	public void disconnect() {
 		isServerInputManagerOn = false;
 	}

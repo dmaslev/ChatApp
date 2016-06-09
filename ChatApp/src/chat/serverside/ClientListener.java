@@ -3,7 +3,6 @@ package chat.serverside;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.net.Socket;
 
 public class ClientListener extends Thread {
@@ -13,20 +12,21 @@ public class ClientListener extends Thread {
 	private BufferedReader input;
 	private String usernameAttched;
 	private boolean keepRunning;
-	private boolean closedByUser;
 
 	public ClientListener(Socket socket, MessageCenter messageCenter, Server server) {
 		this.client = socket;
 		this.messageCenter = messageCenter;
 		this.messageServer = server;
 		this.keepRunning = true;
-		this.closedByUser = false;
 	}
 
 	public Socket getSocket() {
 		return this.client;
 	}
 
+	/**
+	 * Listens for messages from client and sends them to message center.
+	 */
 	public void run() {
 		try {
 			this.input = new BufferedReader(new InputStreamReader(client.getInputStream()));
@@ -36,7 +36,7 @@ public class ClientListener extends Thread {
 		}
 		ClientSender clientSender = new ClientSender(client, messageCenter, messageServer);
 		clientSender.start();
-		
+
 		while (keepRunning) {
 			try {
 				String messageReceived = input.readLine();
@@ -48,7 +48,8 @@ public class ClientListener extends Thread {
 				} else if (messageReceived.equalsIgnoreCase("admin-register")) {
 					messageServer.registerUser(recipient, client, clientSender, this);
 				} else if (messageReceived.equalsIgnoreCase("shutdown")) {
-					//Client sender already closed. The The client asked to close the clientListener
+					// Client sender already closed. The client asked to
+					// close the clientListener
 					messageServer.removeUser(usernameAttched, client);
 					keepRunning = false;
 				} else {
@@ -56,24 +57,12 @@ public class ClientListener extends Thread {
 					messageCenter.addMessageToQueue(message);
 				}
 			} catch (IOException e) {
-				if (closedByUser) {
-					//Expected behavior
-					keepRunning = false;
-				} else {
-					//Unexpected connection lost
-					e.printStackTrace();
-					keepRunning = false;
-				}
+				// Connection lost
+				clientSender.stopSender();
+				messageServer.removeUser(usernameAttched, client);
+				keepRunning = false;
 			}
 		}
-	}
-
-	public void disconnect() throws IOException {
-		this.closedByUser = true;
-		OutputStream output = client.getOutputStream();
-		output.close();
-		input.close();
-		client.close();
 	}
 
 	public void setUsername(String name) {
