@@ -77,12 +77,7 @@ public class Server {
 	public void stopServer() throws IOException {
 		isServerOn = false;
 		for (String user : clients.keySet()) {
-			try {
-				clients.get(user).getClientSender().disconnect();
-				clients.get(user).getClientListener().disconnect();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+			clients.get(user).getClientSender().disconnect(false, user);
 		}
 		
 		serverInput.disconnect();

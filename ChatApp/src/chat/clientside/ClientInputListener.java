@@ -24,11 +24,14 @@ public class ClientInputListener extends Thread {
 				if (message == null) {
 					// Lost connection
 					isConnected = false;
-					break;
-				} else if (message.equalsIgnoreCase("shutdown")) {
+				} else if (message.equalsIgnoreCase("logout")) {
 					System.out.println("Disconnected from server.");
 					isConnected = false;
-				} else {
+				} else if (message.equalsIgnoreCase("shutdown")) {
+					client.sendMessage("shutdown", username);
+					isConnected = false;
+					client.stopScanner();
+				}else {
 					display(message);
 				}
 			} catch (IOException e) {

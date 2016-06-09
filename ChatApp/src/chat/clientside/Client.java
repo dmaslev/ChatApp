@@ -94,17 +94,18 @@ public class Client {
 			output.write(username);
 			output.newLine();
 			output.flush();
+			scanner.close();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+		
 		keepRunning = false;
-//		listener.shutDown();
-//		try {
-//			socket.getInputStream().close();
-//		} catch (IOException e) {
-//			System.out.println("Already closed.");
-//			e.printStackTrace();
-//		}
+	}
+	
+	public void stopScanner() {
+		System.out.println("Disconnected from server.");
+		keepRunning = false;
+		this.scanner.close();
 	}
 
 	public String getUsername() {

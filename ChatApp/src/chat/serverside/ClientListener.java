@@ -44,10 +44,13 @@ public class ClientListener extends Thread {
 
 				if (messageReceived.equalsIgnoreCase("admin-logout")) {
 					keepRunning = false;
-					Message systemMessage = new Message("shutdown", recipient, "admin");
-					clientSender.addMessage(systemMessage);
+					clientSender.disconnect(true, usernameAttched);
 				} else if (messageReceived.equalsIgnoreCase("admin-register")) {
 					messageServer.registerUser(recipient, client, clientSender, this);
+				} else if (messageReceived.equalsIgnoreCase("shutdown")) {
+					//Client sender already closed. The The client asked to close the clientListener
+					messageServer.removeUser(usernameAttched, client);
+					keepRunning = false;
 				} else {
 					Message message = new Message(messageReceived, recipient, usernameAttched);
 					messageCenter.addMessageToQueue(message);
@@ -57,14 +60,12 @@ public class ClientListener extends Thread {
 					//Expected behavior
 					keepRunning = false;
 				} else {
-					//Connection lost
+					//Unexpected connection lost
 					e.printStackTrace();
 					keepRunning = false;
 				}
 			}
 		}
-
-		messageServer.removeUser(usernameAttched, client);
 	}
 
 	public void disconnect() throws IOException {

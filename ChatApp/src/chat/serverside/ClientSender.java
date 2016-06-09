@@ -42,9 +42,15 @@ public class ClientSender extends Thread {
 				Message message = getNextMessageFromQueue();
 				if (message.getIsSystemMessage()) {
 					if (message.getMessageText().equalsIgnoreCase("shutdown")) {
-						sendMessage(message);
+						// Message sent from server
+						sendMessagetoOneUser(message.getSender(), message.getMessageText());
 						keepRunning = false;
-					} 
+					} else if (message.getMessageText() == "logout") {
+						// Message sent from client to logout
+						sendMessagetoOneUser(message.getSender(), message.getMessageText());
+						keepRunning = false;
+						messageServer.removeUser(message.getRecipient(), client);
+					}
 				} else {
 					sendMessage(message);
 				}
@@ -98,8 +104,7 @@ public class ClientSender extends Thread {
 			if (!sender.equalsIgnoreCase("admin")) {
 				messageText = sender + ": " + messageText;
 			}
-			System.out.println(messageText);
-			
+
 			out.write(messageText);
 			out.newLine();
 			out.flush();
@@ -130,8 +135,17 @@ public class ClientSender extends Thread {
 		}
 	}
 
-	public void disconnect() {
-		Message systemMessage = new Message("shutdown", "admin", "admin");
+	public void disconnect(boolean isClientListenerClosed, String name) {
+		Message systemMessage;
+		if (isClientListenerClosed) {
+			// Generating empty message to close the client sender
+			systemMessage = new Message("logout", name, "admin");
+		} else {
+			// Generating system message to close the client sender and the
+			// client listener
+			systemMessage = new Message("shutdown", name, "admin");
+		}
+
 		addMessage(systemMessage);
 	}
 }
