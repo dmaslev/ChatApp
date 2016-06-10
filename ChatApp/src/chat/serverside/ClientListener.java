@@ -20,20 +20,16 @@ public class ClientListener extends Thread {
 		this.keepRunning = true;
 	}
 
-	public Socket getSocket() {
-		return this.client;
-	}
-
 	/**
 	 * Listens for messages from client and sends them to message center.
 	 */
 	public void run() {
 		try {
 			this.input = new BufferedReader(new InputStreamReader(client.getInputStream()));
-
 		} catch (IOException e1) {
 			keepRunning = false;
 		}
+		
 		ClientSender clientSender = new ClientSender(client, messageCenter, messageServer);
 		clientSender.start();
 
@@ -46,7 +42,7 @@ public class ClientListener extends Thread {
 					keepRunning = false;
 					clientSender.disconnect(true, usernameAttched);
 				} else if (messageReceived.equalsIgnoreCase("admin-register")) {
-					messageServer.registerUser(recipient, client, clientSender, this);
+					messageServer.addUser(recipient, client, clientSender, this);
 				} else if (messageReceived.equalsIgnoreCase("shutdown")) {
 					// Client sender already closed. The client asked to
 					// close the clientListener
@@ -63,6 +59,10 @@ public class ClientListener extends Thread {
 				keepRunning = false;
 			}
 		}
+	}
+
+	public Socket getSocket() {
+		return this.client;
 	}
 
 	public void setUsername(String name) {

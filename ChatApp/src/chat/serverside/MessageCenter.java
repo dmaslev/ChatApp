@@ -1,9 +1,5 @@
 package chat.serverside;
 
-import java.io.BufferedWriter;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.net.Socket;
 import java.util.LinkedList;
 import java.util.Map;
 
@@ -19,19 +15,6 @@ public class MessageCenter extends Thread{
 		this.clients = this.server.getClients();
 		this.messagesQueue = new LinkedList<Message>();
 		this.isServerOn = true;
-	}
-	
-	public Map<String, User> getClients() {
-		return this.clients;
-	}
-	
-	/**
-	 * Adds a message to the queue.
-	 * @param message The message to be added.
-	 */
-	public synchronized void addMessageToQueue(Message message) {
-		messagesQueue.add(message);
-		notify();
 	}
 
 	/**
@@ -53,6 +36,19 @@ public class MessageCenter extends Thread{
 
 	private void sendMessage(Message message) {
 		clients.get(message.getSender()).getClientSender().addMessage(message);
+	}
+	
+	public Map<String, User> getClients() {
+		return this.clients;
+	}
+	
+	/**
+	 * Adds a message to the queue.
+	 * @param message The message to be added.
+	 */
+	public synchronized void addMessageToQueue(Message message) {
+		messagesQueue.add(message);
+		notify();
 	}
 	
 	public void run() {

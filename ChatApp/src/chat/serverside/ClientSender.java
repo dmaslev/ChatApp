@@ -23,17 +23,6 @@ public class ClientSender extends Thread {
 	}
 
 	/**
-	 * Adds a message to the queue.
-	 * 
-	 * @param message
-	 *            A message to be added.
-	 */
-	public synchronized void addMessage(Message message) {
-		messages.add(message);
-		notify();
-	}
-
-	/**
 	 * 
 	 * @return Returns the first message in the queue.
 	 * @throws InterruptedException
@@ -45,37 +34,6 @@ public class ClientSender extends Thread {
 
 		Message message = messages.pop();
 		return message;
-	}
-
-	/**
-	 * Waits for messages from server and sends them to the client. Stops when a
-	 * system message is received.
-	 */
-	public void run() {
-		while (keepRunning) {
-			try {
-				Message message = getNextMessageFromQueue();
-				if (message == null) {
-					keepRunning = false;
-					continue;
-				}
-
-				if (message.getIsSystemMessage()) {
-					if (message.getMessageText() == "logout") {
-						// Message sent from client to logout
-						messageServer.removeUser(message.getRecipient(), client);
-					}
-
-					keepRunning = false;
-					sendMessagetoOneUser(message.getSender(), message.getMessageText());
-				} else {
-					sendMessage(message);
-				}
-			} catch (InterruptedException e) {
-				keepRunning = false;
-				e.printStackTrace();
-			}
-		}
 	}
 
 	/**
@@ -206,6 +164,47 @@ public class ClientSender extends Thread {
 		}
 
 		addMessage(systemMessage);
+	}
+
+	/**
+	 * Adds a message to the queue.
+	 * 
+	 * @param message
+	 *            A message to be added.
+	 */
+	public synchronized void addMessage(Message message) {
+		messages.add(message);
+		notify();
+	}
+
+	/**
+	 * Waits for messages from server and sends them to the client. Stops when a
+	 * system message is received.
+	 */
+	public void run() {
+		while (keepRunning) {
+			try {
+				Message message = getNextMessageFromQueue();
+				if (message == null) {
+					keepRunning = false;
+				} else {
+					if (message.getIsSystemMessage()) {
+						if (message.getMessageText() == "logout") {
+							// Message sent from client to logout
+							messageServer.removeUser(message.getRecipient(), client);
+						}
+
+						keepRunning = false;
+						sendMessagetoOneUser(message.getSender(), message.getMessageText());
+					} else {
+						sendMessage(message);
+					}
+				}
+			} catch (InterruptedException e) {
+				keepRunning = false;
+				e.printStackTrace();
+			}
+		}
 	}
 
 	/**

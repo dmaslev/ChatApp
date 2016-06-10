@@ -1,6 +1,5 @@
 package chat.serverside;
 
-import java.io.IOException;
 import java.util.Scanner;
 
 public class ServerInputManager extends Thread {
@@ -21,19 +20,17 @@ public class ServerInputManager extends Thread {
 		this.server = server;
 	}
 
+	/**
+	 * Listens for input commands and executes them.
+	 */
 	public void run() {
 		isServerInputManagerOn = true;
 		while (isServerInputManagerOn) {
 			String line = reader.nextLine();
 			if (line.equalsIgnoreCase("disconnect")) {
-				try {
-					server.stopServer();
-				} catch (IOException e) {
-					System.out.println("Server has already been stopped");
-					e.printStackTrace();
-				}
+				server.stopServer();
 			} else if (line.startsWith("remove: ")) {
-				String name = line.substring(8);
+				String name = line.substring(8).trim();
 				server.disconnectUser(name);
 			} else if (line.equalsIgnoreCase("listall")) {
 				server.listConnectedUsers();
@@ -43,6 +40,9 @@ public class ServerInputManager extends Thread {
 		}
 	}
 
+	/**
+	 * Stops waiting for user input.
+	 */
 	public void disconnect() {
 		isServerInputManagerOn = false;
 	}
