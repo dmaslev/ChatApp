@@ -1,4 +1,4 @@
-package chat.serverside;
+package chat.server;
 import java.net.Socket;
 import java.util.Date;
 

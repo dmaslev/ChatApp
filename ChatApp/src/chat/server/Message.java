@@ -1,4 +1,4 @@
-package chat.serverside;
+package chat.server;
 
 public class Message {
 	private String text;
@@ -11,14 +11,6 @@ public class Message {
 		this.recipient = recipient;
 		this.sender = sender;
 		this.setSystemMessage();
-	}
-
-	private void setSystemMessage() {
-		if (sender.equalsIgnoreCase("admin") || sender.equalsIgnoreCase("administrator")) {
-			this.isSystemMessage = true;
-		} else {
-			this.isSystemMessage = false;
-		}
 	}
 	
 	public boolean getIsSystemMessage() {
@@ -35,5 +27,13 @@ public class Message {
 	
 	public String getSender() {
 		return this.sender;
+	}
+
+	private void setSystemMessage() {
+		if (sender.equalsIgnoreCase("admin") || sender.equalsIgnoreCase("administrator")) {
+			this.isSystemMessage = true;
+		} else {
+			this.isSystemMessage = false;
+		}
 	}
 }

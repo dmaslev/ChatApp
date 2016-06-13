@@ -1,4 +1,4 @@
-package chat.serverside;
+package chat.server;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -22,6 +22,78 @@ public class ClientSender extends Thread {
 		this.messageServer = messageServer;
 	}
 
+	/**
+	 * Waits for messages from server and sends them to the client. Stops when a
+	 * system message is received.
+	 */
+	public void run() {
+		while (keepRunning) {
+			try {
+				Message message = getNextMessageFromQueue();
+				if (message == null) {
+					keepRunning = false;
+				} else {
+					if (message.getIsSystemMessage()) {
+						if (message.getMessageText() == "logout") {
+							// Message sent from client to logout
+							messageServer.removeUser(message.getRecipient(), client);
+						}
+
+						keepRunning = false;
+						sendMessagetoOneUser(message.getSender(), message.getMessageText());
+					} else {
+						sendMessage(message);
+					}
+				}
+			} catch (InterruptedException interruptedException) {
+				keepRunning = false;
+				interruptedException.printStackTrace();
+			}
+		}
+	}
+
+	/**
+	 * Adds a message to the queue.
+	 * 
+	 * @param message
+	 *            A message to be added.
+	 */
+	public synchronized void addMessage(Message message) {
+		messages.add(message);
+		notify();
+	}
+
+	/**
+	 * Adds a system message in the queue to terminate the client sender. If the
+	 * client listener is not terminated the system message terminates it.
+	 * 
+	 * @param isClientListenerClosed
+	 *            Indicates if the client listener has been already closed.
+	 * @param name
+	 *            The username of the client.
+	 */
+	public void disconnect(boolean isClientListenerClosed, String name) {
+		Message systemMessage;
+		if (isClientListenerClosed) {
+			// Generating empty message to close the client sender
+			systemMessage = new Message("logout", name, "admin");
+		} else {
+			// Generating system message to close the client sender and the
+			// client listener
+			systemMessage = new Message("shutdown", name, "admin");
+		}
+
+		addMessage(systemMessage);
+	}
+
+	/**
+	 * Sends a system message to terminate the client sender.
+	 */
+	public void stopSender() {
+		Message systemMessage = null;
+		addMessage(systemMessage);
+	}
+	
 	/**
 	 * 
 	 * @return Returns the first message in the queue.
@@ -75,8 +147,8 @@ public class ClientSender extends Thread {
 			out.write(errorMessage);
 			out.newLine();
 			out.flush();
-		} catch (IOException e) {
-			e.printStackTrace();
+		} catch (IOException ioException) {
+			ioException.printStackTrace();
 		}
 	}
 
@@ -108,8 +180,8 @@ public class ClientSender extends Thread {
 			out.write(messageText);
 			out.newLine();
 			out.flush();
-		} catch (IOException e) {
-			e.printStackTrace();
+		} catch (IOException ioException) {
+			ioException.printStackTrace();
 		}
 	}
 
@@ -123,6 +195,8 @@ public class ClientSender extends Thread {
 	 */
 	private void sendMessageToAllUsers(String sender, String messageText) {
 		Map<String, User> clients = messageCenter.getClients();
+		messageText = sender + ": " + messageText;
+
 		for (String client : clients.keySet()) {
 			if (client == sender) {
 				continue;
@@ -133,85 +207,12 @@ public class ClientSender extends Thread {
 
 			try {
 				BufferedWriter out = new BufferedWriter(new OutputStreamWriter(ct.getOutputStream()));
-				messageText = sender + ": " + messageText;
 				out.write(messageText);
 				out.newLine();
 				out.flush();
-			} catch (IOException e) {
-				e.printStackTrace();
+			} catch (IOException ioException) {
+				ioException.printStackTrace();
 			}
 		}
-	}
-
-	/**
-	 * Adds a system message in the queue to terminate the client sender. If the
-	 * client listener is not terminated the system message terminates it.
-	 * 
-	 * @param isClientListenerClosed
-	 *            Indicates if the client listener has been already closed.
-	 * @param name
-	 *            The username of the client.
-	 */
-	public void disconnect(boolean isClientListenerClosed, String name) {
-		Message systemMessage;
-		if (isClientListenerClosed) {
-			// Generating empty message to close the client sender
-			systemMessage = new Message("logout", name, "admin");
-		} else {
-			// Generating system message to close the client sender and the
-			// client listener
-			systemMessage = new Message("shutdown", name, "admin");
-		}
-
-		addMessage(systemMessage);
-	}
-
-	/**
-	 * Adds a message to the queue.
-	 * 
-	 * @param message
-	 *            A message to be added.
-	 */
-	public synchronized void addMessage(Message message) {
-		messages.add(message);
-		notify();
-	}
-
-	/**
-	 * Waits for messages from server and sends them to the client. Stops when a
-	 * system message is received.
-	 */
-	public void run() {
-		while (keepRunning) {
-			try {
-				Message message = getNextMessageFromQueue();
-				if (message == null) {
-					keepRunning = false;
-				} else {
-					if (message.getIsSystemMessage()) {
-						if (message.getMessageText() == "logout") {
-							// Message sent from client to logout
-							messageServer.removeUser(message.getRecipient(), client);
-						}
-
-						keepRunning = false;
-						sendMessagetoOneUser(message.getSender(), message.getMessageText());
-					} else {
-						sendMessage(message);
-					}
-				}
-			} catch (InterruptedException e) {
-				keepRunning = false;
-				e.printStackTrace();
-			}
-		}
-	}
-
-	/**
-	 * Sends a system message to terminate the client sender.
-	 */
-	public void stopSender() {
-		Message systemMessage = null;
-		addMessage(systemMessage);
 	}
 }

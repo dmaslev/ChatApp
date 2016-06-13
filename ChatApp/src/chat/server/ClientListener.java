@@ -1,4 +1,4 @@
-package chat.serverside;
+package chat.server;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -26,7 +26,7 @@ public class ClientListener extends Thread {
 	public void run() {
 		try {
 			this.input = new BufferedReader(new InputStreamReader(client.getInputStream()));
-		} catch (IOException e1) {
+		} catch (IOException ioException) {
 			keepRunning = false;
 		}
 		
@@ -37,8 +37,7 @@ public class ClientListener extends Thread {
 			try {
 				String messageReceived = input.readLine();
 				String recipient = input.readLine();
-
-				if (messageReceived.equalsIgnoreCase("admin-logout")) {
+				if (messageReceived.equalsIgnoreCase("logout") && recipient.equalsIgnoreCase(usernameAttched)) {
 					keepRunning = false;
 					clientSender.disconnect(true, usernameAttched);
 				} else if (messageReceived.equalsIgnoreCase("admin-register")) {
@@ -52,7 +51,7 @@ public class ClientListener extends Thread {
 					Message message = new Message(messageReceived, recipient, usernameAttched);
 					messageCenter.addMessageToQueue(message);
 				}
-			} catch (IOException e) {
+			} catch (IOException ioException) {
 				// Connection lost
 				clientSender.stopSender();
 				messageServer.removeUser(usernameAttched, client);
