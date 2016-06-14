@@ -8,7 +8,6 @@ import java.io.OutputStreamWriter;
 import java.net.Socket;
 
 public class ClientMessageSender implements Runnable {
-	private final String STOP_COMMAND = "/logout";
 	private BufferedReader inputReader;
 	private BufferedWriter output;
 	private boolean keepRunning;
@@ -23,11 +22,13 @@ public class ClientMessageSender implements Runnable {
 
 	public void run() {
 		setUsername(username);
-		while (keepRunning) {
-			try {
+		try {
+			while (keepRunning) {
 				String message = inputReader.readLine();
-				if (message.equalsIgnoreCase(STOP_COMMAND)) {
+				if (message.equalsIgnoreCase(UserCommands.stopCommand)) {
 					stopClient();
+				} else if (message.equalsIgnoreCase(UserCommands.exitCommand)) {
+					keepRunning = false;
 				} else {
 					System.out.print("Enter a username or \"all\" to send to all connected users: ");
 					String receiver = inputReader.readLine();
@@ -39,9 +40,14 @@ public class ClientMessageSender implements Runnable {
 
 					sendMessage(message, receiver);
 				}
+			}
+		} catch (IOException ioException) {
+			keepRunning = false;
+		} finally {
+			try {
+				inputReader.close();
 			} catch (IOException ioException) {
-				keepRunning = false;
-				System.out.println("Disconnected from server.");
+				ioException.printStackTrace();
 			}
 		}
 	}
@@ -55,15 +61,15 @@ public class ClientMessageSender implements Runnable {
 	 *            - Username of the recipient in String format.
 	 * @throws IOException
 	 */
-	public void sendMessage(String message, String recipient) throws IOException {
+	protected void sendMessage(String message, String recipient) throws IOException {
 		output.write(message);
 		output.newLine();
 		output.write(recipient);
 		output.newLine();
 		output.flush();
 	}
-	
-	public void sendMessage(String message) throws IOException {
+
+	protected void sendMessage(String message) throws IOException {
 		output.write(message);
 		output.newLine();
 		output.write(username);
@@ -77,14 +83,15 @@ public class ClientMessageSender implements Runnable {
 	 * 
 	 * @param input
 	 *            BufferedReader for reading the input
+	 * @throws IOException 
 	 */
-	public void initializeUsername() {
+	protected void initializeUsername() throws IOException {
 		try {
 			output = new BufferedWriter(new OutputStreamWriter(client.getOutputStream()));
 		} catch (IOException ioException) {
 			ioException.printStackTrace();
 		}
-		
+
 		System.out.print("Enter your username: ");
 		try {
 			username = inputReader.readLine();
@@ -99,22 +106,20 @@ public class ClientMessageSender implements Runnable {
 		try {
 			sendMessage("admin-register", username);
 		} catch (IOException ioException) {
-			// Lost connection with the server. Unable to send message.
-			System.out.println("Unable to connect to the server.");
 			keepRunning = false;
-			ioException.printStackTrace();
+			throw new IOException(ioException);
 		}
 	}
 
-	public String getUsername() {
+	protected String getUsername() {
 		return this.username;
 	}
 
-	public void setUsername(String name) {
+	protected void setUsername(String name) {
 		this.username = name;
 	}
-	
-	public void shutdown() {
+
+	protected void shutdown() {
 		try {
 			output.close();
 			client.close();

@@ -13,13 +13,13 @@ public class ClientSender extends Thread {
 	private Socket client;
 	private boolean keepRunning;
 	private Server messageServer;
+	private Map<String, User> clients;
 
 	public ClientSender(Socket client, MessageCenter messageCenter, Server messageServer) {
 		this.client = client;
 		this.messageCenter = messageCenter;
-		this.messages = new LinkedList<>();
-		this.keepRunning = true;
 		this.messageServer = messageServer;
+		this.clients =  messageCenter.getClients();
 	}
 
 	/**
@@ -27,6 +27,9 @@ public class ClientSender extends Thread {
 	 * system message is received.
 	 */
 	public void run() {
+		this.messages = new LinkedList<>();
+		this.keepRunning = true;
+
 		while (keepRunning) {
 			try {
 				Message message = getNextMessageFromQueue();
@@ -34,7 +37,7 @@ public class ClientSender extends Thread {
 					keepRunning = false;
 				} else {
 					if (message.getIsSystemMessage()) {
-						if (message.getMessageText() == "logout") {
+						if (message.getMessageText().equalsIgnoreCase("logout")) {
 							// Message sent from client to logout
 							messageServer.removeUser(message.getRecipient(), client);
 						}
@@ -171,8 +174,7 @@ public class ClientSender extends Thread {
 		}
 
 		try {
-			Socket ct = user.getSocket();
-			BufferedWriter out = new BufferedWriter(new OutputStreamWriter(ct.getOutputStream()));
+			BufferedWriter out = user.getOutputStream();
 			if (!sender.equalsIgnoreCase("admin")) {
 				messageText = sender + ": " + messageText;
 			}
@@ -194,7 +196,6 @@ public class ClientSender extends Thread {
 	 *            The text of the message.
 	 */
 	private void sendMessageToAllUsers(String sender, String messageText) {
-		Map<String, User> clients = messageCenter.getClients();
 		messageText = sender + ": " + messageText;
 
 		for (String client : clients.keySet()) {
@@ -203,10 +204,9 @@ public class ClientSender extends Thread {
 			}
 
 			User user = clients.get(client);
-			Socket ct = user.getSocket();
 
 			try {
-				BufferedWriter out = new BufferedWriter(new OutputStreamWriter(ct.getOutputStream()));
+				BufferedWriter out = user.getOutputStream();
 				out.write(messageText);
 				out.newLine();
 				out.flush();

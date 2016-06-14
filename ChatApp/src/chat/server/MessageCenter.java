@@ -3,7 +3,7 @@ package chat.server;
 import java.util.LinkedList;
 import java.util.Map;
 
-public class MessageCenter extends Thread{
+public class MessageCenter extends Thread {
 
 	private Server server;
 	private Map<String, User> clients;
@@ -13,11 +13,12 @@ public class MessageCenter extends Thread{
 	public MessageCenter(Server server) {
 		this.server = server;
 		this.clients = this.server.getClients();
-		this.messagesQueue = new LinkedList<Message>();
 		this.isServerOn = true;
 	}
 
 	public void run() {
+		this.messagesQueue = new LinkedList<Message>();
+
 		while (isServerOn) {
 			Message message = getNextMessageFromQueue();
 			if (message.getIsSystemMessage()) {
@@ -32,7 +33,9 @@ public class MessageCenter extends Thread{
 
 	/**
 	 * Adds a message to the queue.
-	 * @param message The message to be added.
+	 * 
+	 * @param message
+	 *            The message to be added.
 	 */
 	public synchronized void addMessageToQueue(Message message) {
 		messagesQueue.add(message);
@@ -42,13 +45,12 @@ public class MessageCenter extends Thread{
 	public Map<String, User> getClients() {
 		return this.clients;
 	}
-	
 
 	public void disconnect() {
 		Message systemMessage = new Message("shutdown", "admin", "admin");
 		addMessageToQueue(systemMessage);
 	}
-	
+
 	/**
 	 * 
 	 * @return First message in the queue.
@@ -61,12 +63,12 @@ public class MessageCenter extends Thread{
 				interruptedException.printStackTrace();
 			}
 		}
-		
+
 		Message message = messagesQueue.poll();
 		return message;
 	}
 
-	synchronized private void sendMessage(Message message) {
+	private synchronized void sendMessage(Message message) {
 		clients.get(message.getSender()).getClientSender().addMessage(message);
 	}
 }

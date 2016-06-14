@@ -12,8 +12,8 @@ import java.util.Map;
 import java.util.Scanner;
 
 public class Server {
-	private ServerSocket serverSocket;
 	private final int DEFAULT_PORT = 2222;
+	private ServerSocket serverSocket;
 	private Scanner reader;
 	private boolean isServerOn;
 	private Socket socket;
@@ -23,7 +23,30 @@ public class Server {
 
 	public static void main(String[] args) {
 		Server server = new Server();
-		server.run(args);
+		server.startServer(args);
+	}
+
+	/**
+	 * Initializes the server, opens the server socket and waits for user
+	 * connections.
+	 * 
+	 * @param args
+	 */
+	private void startServer(String[] args) {
+		isServerOn = true;
+		try {
+			initializeServer(args);
+			messageCenter = new MessageCenter(this);
+			messageCenter.start();
+			serverInput = new ServerInputManager(this, reader);
+			serverInput.start();
+			waitForConnections();
+		} catch (IOException e) {
+			isServerOn = false;
+			e.printStackTrace();
+		} finally {
+			stopServer();
+		}
 	}
 
 	/**
@@ -31,7 +54,7 @@ public class Server {
 	 * @param username
 	 * @return Returns true if the user is connected and false otherwise.
 	 */
-	synchronized public boolean isUserConnected(String username) {
+	protected synchronized boolean isUserConnected(String username) {
 		User client = clients.get(username);
 		if (client == null) {
 			return false;
@@ -41,26 +64,9 @@ public class Server {
 	}
 
 	/**
-	 * Initializes the server, opens the server socket and waits for user
-	 * connections.
-	 * 
-	 * @param args
-	 */
-	public void run(String[] args) {
-		initializeServer(args);
-
-		messageCenter = new MessageCenter(this);
-		messageCenter.start();
-		serverInput = new ServerInputManager(this, reader);
-		serverInput.start();
-		isServerOn = true;
-		waitForConnections();
-	}
-
-	/**
 	 * Prints information about all connected users.
 	 */
-	public void listConnectedUsers() {
+	protected void listConnectedUsers() {
 		if (this.clients.keySet().isEmpty()) {
 			System.out.println("There are no connected users at the moment.");
 		} else {
@@ -85,13 +91,13 @@ public class Server {
 	 * @param messageListener
 	 *            Message listener of the user.
 	 */
-	synchronized public void addUser(String name, Socket client, ClientSender messageSender,
+	protected synchronized void addUser(String name, Socket client, ClientSender messageSender,
 			ClientListener messageListener) {
 		int resultCode = validateUsername(name);
 		sendMessageToClient(client, resultCode, name);
 
 		if (resultCode == 0) {
-			User connectedUser = new User(client, name, messageSender, messageListener);
+			User connectedUser = new User(client, name, messageSender);
 			messageListener.setUsername(name);
 			clients.put(name, connectedUser);
 		}
@@ -106,7 +112,7 @@ public class Server {
 	 *            Used if the user is connected, but not logged in with username
 	 *            yet.
 	 */
-	synchronized public void removeUser(String username, Socket client) {
+	protected synchronized void removeUser(String username, Socket client) {
 		if (username == null) {
 			username = client.getInetAddress().toString();
 		}
@@ -117,9 +123,9 @@ public class Server {
 
 	/**
 	 * 
-	 * @return Returns the hashmap of all connected users.
+	 * @return Returns the collection of all connected users.
 	 */
-	public Map<String, User> getClients() {
+	protected Map<String, User> getClients() {
 		return this.clients;
 	}
 
@@ -127,7 +133,7 @@ public class Server {
 	 * Stops waiting for new connections. Calls disconnect method on all
 	 * connected users and closes the server socket.
 	 */
-	public void stopServer() {
+	protected void stopServer() {
 		isServerOn = false;
 		for (String username : clients.keySet()) {
 			User user = clients.get(username);
@@ -154,12 +160,18 @@ public class Server {
 	 * @param name
 	 *            The name of the user to be disconnected.
 	 */
-	public void disconnectUser(String name) {
+	protected void disconnectUser(String name) {
 		User user = clients.get(name);
 		if (user == null) {
 			System.out.println(name + " is not connected.");
 		} else {
 			user.getClientSender().disconnect(false, name);
+			try {
+				user.getOutputStream().close();
+			} catch (IOException ioException) {
+				//Output stream already closed.
+				ioException.printStackTrace();
+			}
 		}
 	}
 
@@ -179,13 +191,18 @@ public class Server {
 		return resultCode;
 	}
 
-	private void printWelcomeMessage() throws UnknownHostException {
-		InetAddress serverAdress = InetAddress.getLocalHost();
-		int port = serverSocket.getLocalPort();
+	private void printWelcomeMessage() {
+		try {
+			InetAddress serverAdress = InetAddress.getLocalHost();
+			int port = serverSocket.getLocalPort();
 
-		System.out.println("Server adress: " + serverAdress + " on port: " + port);
-		System.out.println("Server is ready to accept conenctions");
-		System.out.println("Enter \"/help\" to see the help menu.");
+			System.out.println("Server adress: " + serverAdress + " on port: " + port);
+			System.out.println("Server is ready to accept conenctions");
+			System.out.println("Enter \"/help\" to see the help menu.");
+		} catch (UnknownHostException unknownHostException) {
+			// Unable to read local address.
+			unknownHostException.printStackTrace();
+		}
 	}
 
 	private void waitForConnections() {
@@ -202,7 +219,7 @@ public class Server {
 		}
 	}
 
-	synchronized private void sendMessageToClient(Socket ct, int successfullyLoggedIn, String name) {
+	private synchronized void sendMessageToClient(Socket ct, int successfullyLoggedIn, String name) {
 		String message = new String();
 
 		switch (successfullyLoggedIn) {
@@ -228,11 +245,11 @@ public class Server {
 			out.newLine();
 			out.flush();
 		} catch (IOException ioException) {
-			ioException.printStackTrace();
+			System.out.println("User has been disconnected. Unable to send the message.");
 		}
 	}
 
-	private void initializeServer(String[] args) {
+	private void initializeServer(String[] args) throws IOException, NumberFormatException {
 		int port = DEFAULT_PORT;
 		try {
 			if (args.length > 0) {
@@ -242,19 +259,13 @@ public class Server {
 			System.out.println(args[0] + " is not a valid port. Default value will be used.");
 		}
 
-		try {
-			serverSocket = new ServerSocket(port);
-		} catch (IOException ioException) {
-			ioException.printStackTrace();
-		}
+		serverSocket = new ServerSocket(port);
 
-		reader = new Scanner(System.in);
-		clients = new HashMap<>();
+		if (isServerOn) {
+			reader = new Scanner(System.in);
+			clients = new HashMap<>();
 
-		try {
 			printWelcomeMessage();
-		} catch (UnknownHostException unknownHostException) {
-			unknownHostException.printStackTrace();
 		}
 	}
 }

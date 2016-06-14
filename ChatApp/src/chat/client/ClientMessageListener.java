@@ -17,33 +17,15 @@ public class ClientMessageListener implements Runnable {
 		this.isConnected = true;
 	}
 
-	@SuppressWarnings("deprecation")
 	public void run() {
-		try {
-			listener = new BufferedReader(new InputStreamReader(client.getInputStream()));
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-
-		try {
-			String result = listener.readLine();
-			System.out.println(result);
-			while (!result.equals("Successfully logged in.")) {
-				messageSender.initializeUsername();
-				result = listener.readLine();
-				System.out.println(result);
-			}
-		} catch (IOException ioException) {
-			isConnected = false;
-			ioException.printStackTrace();
-		}
-
 		Thread senderThread = new Thread(messageSender);
-		senderThread.start();
 
-		String message;
-		while (isConnected) {
-			try {
+		try {
+			initializeMessageListener();
+			senderThread.start();
+
+			String message;
+			while (isConnected) {
 				message = listener.readLine();
 				if (message == null) {
 					// Lost connection
@@ -52,23 +34,49 @@ public class ClientMessageListener implements Runnable {
 					System.out.println("Disconnected from server.");
 					isConnected = false;
 				} else if (message.equalsIgnoreCase("shutdown")) {
+					System.out.println(
+							"You have been disconnected from server. Enter /reconnect to try to reconnect or /exit to stop the program.");
 					messageSender.sendMessage("shutdown");
 					isConnected = false;
 					messageSender.shutdown();
-					senderThread.stop();
 				} else {
 					display(message);
 				}
-			} catch (IOException ioException) {
-				System.out.println("Lost connection with server.");
-				isConnected = false;
+			}
+		} catch (IOException ioException) {
+			System.out.println("Lost connection with server.");
+			isConnected = false;
+		} finally {
+			try {
+				listener.close();
+			} catch (IOException e) {
+				e.printStackTrace();
 			}
 		}
-		
+	}
+
+	private void initializeMessageListener() {
 		try {
-			listener.close();
+			listener = new BufferedReader(new InputStreamReader(client.getInputStream()));
 		} catch (IOException ioException) {
+			// Socket is closed
+			isConnected = false;
 			ioException.printStackTrace();
+		}
+
+		if (isConnected) {
+			try {
+				String result = listener.readLine();
+				System.out.println(result);
+				while (!result.equals("Successfully logged in.")) {
+					messageSender.initializeUsername();
+					result = listener.readLine();
+					System.out.println(result);
+				}
+			} catch (IOException ioException) {
+				isConnected = false;
+				ioException.printStackTrace();
+			}
 		}
 	}
 

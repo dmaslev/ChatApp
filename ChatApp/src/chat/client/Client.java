@@ -14,9 +14,6 @@ public class Client {
 	private ClientMessageListener listener;
 	private BufferedReader inputReader;
 
-	public Client() {
-	}
-
 	public static void main(String[] args) {
 		Client client = new Client();
 		client.initializeClient(args);
@@ -53,18 +50,18 @@ public class Client {
 			System.out.print("Enter host adress/ip adress of server/: ");
 			try {
 				serverAdress = inputReader.readLine();
+				
+				port = DEFAULT_PORT_NUMBER;
+				if (args.length > 1) {
+					try {
+						port = Integer.parseInt(args[1]);
+					} catch (NumberFormatException numberFormatException) {
+						System.out.println(args[1] + " is not valid port number. Default port number will be used.");
+						port = DEFAULT_PORT_NUMBER;
+					}
+				}
 			} catch (IOException ioException) {
 				ioException.printStackTrace();
-			}
-		}
-
-		port = DEFAULT_PORT_NUMBER;
-		if (args.length > 1) {
-			try {
-				port = Integer.parseInt(args[1]);
-			} catch (NumberFormatException numberFormatException) {
-				System.out.println(args[1] + " is not valid port number. Default port number will be used.");
-				port = DEFAULT_PORT_NUMBER;
 			}
 		}
 	}

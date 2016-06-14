@@ -13,23 +13,23 @@ public class ClientListener extends Thread {
 	private String usernameAttched;
 	private boolean keepRunning;
 
-	public ClientListener(Socket socket, MessageCenter messageCenter, Server server) {
-		this.client = socket;
+	public ClientListener(Socket client, MessageCenter messageCenter, Server messageServer) {
+		this.client = client;
 		this.messageCenter = messageCenter;
-		this.messageServer = server;
-		this.keepRunning = true;
+		this.messageServer = messageServer;
 	}
 
 	/**
 	 * Listens for messages from client and sends them to message center.
 	 */
 	public void run() {
+		this.keepRunning = true;
 		try {
 			this.input = new BufferedReader(new InputStreamReader(client.getInputStream()));
 		} catch (IOException ioException) {
 			keepRunning = false;
 		}
-		
+
 		ClientSender clientSender = new ClientSender(client, messageCenter, messageServer);
 		clientSender.start();
 
@@ -40,7 +40,7 @@ public class ClientListener extends Thread {
 				if (messageReceived.equalsIgnoreCase("logout") && recipient.equalsIgnoreCase(usernameAttched)) {
 					keepRunning = false;
 					clientSender.disconnect(true, usernameAttched);
-				} else if (messageReceived.equalsIgnoreCase("admin-register")) {
+				} else if (messageReceived.equalsIgnoreCase("admin-register") && usernameAttched == null) {
 					messageServer.addUser(recipient, client, clientSender, this);
 				} else if (messageReceived.equalsIgnoreCase("shutdown")) {
 					// Client sender already closed. The client asked to
