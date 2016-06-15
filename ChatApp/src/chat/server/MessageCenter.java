@@ -46,7 +46,7 @@ public class MessageCenter extends Thread {
 	}
 
 	public void disconnect() {
-		// Code 301 is system code for shutdown the message center.
+		// Code 300 is system code for shutdown the message center.
 		Message systemMessage = new Message(300);
 		addMessageToQueue(systemMessage);
 	}

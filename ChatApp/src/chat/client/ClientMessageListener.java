@@ -43,8 +43,9 @@ public class ClientMessageListener implements Runnable {
 				}
 			}
 		} catch (IOException ioException) {
-			System.out.print("Lost connection with server. ");
+			System.out.print("\nLost connection with server. ");
 			isConnected = false;
+			messageSender.shutdown();
 		} finally {
 			try {
 				listener.close();

@@ -7,6 +7,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Scanner;
 
@@ -17,6 +18,7 @@ public class Server {
 	private boolean isServerOn;
 	private Socket socket;
 	private Map<String, User> clients;
+	private HashSet<Socket> connectedClients;
 	private MessageCenter messageCenter;
 	private ServerInputManager serverInput;
 
@@ -99,6 +101,7 @@ public class Server {
 			User connectedUser = new User(client, name, messageSender);
 			messageListener.setUsername(name);
 			clients.put(name, connectedUser);
+			connectedClients.remove(client);
 		}
 	}
 
@@ -108,7 +111,7 @@ public class Server {
 	 * @param username
 	 *            Name of the user to be removed.
 	 * @param client
-	 *            Used if the user is connected, but not logged in with username
+	 *            Used if the user is connected, but not logged in with username.
 	 *            yet.
 	 */
 	protected synchronized void removeUser(String username, Socket client) {
@@ -138,6 +141,14 @@ public class Server {
 			User user = clients.get(username);
 			if (user != null) {
 				user.getClientSender().disconnect(false, username);
+			}
+		}
+		
+		for (Socket socket : connectedClients) {
+			try {
+				socket.close();
+			} catch (IOException ioException) {
+				ioException.printStackTrace();
 			}
 		}
 
@@ -217,6 +228,7 @@ public class Server {
 		while (isServerOn) {
 			try {
 				socket = serverSocket.accept();
+				connectedClients.add(socket);
 				System.out.println(socket.getInetAddress() + " connected");
 
 				ClientListener client = new ClientListener(socket, messageCenter, this);
@@ -251,8 +263,12 @@ public class Server {
 
 		if (isServerOn) {
 			reader = new Scanner(System.in);
+			
+			// All logged in  clients.
 			clients = new HashMap<>();
-
+			
+			// Collection with connected, but not logged in users.
+			connectedClients = new HashSet<>();
 			printWelcomeMessage();
 		}
 	}

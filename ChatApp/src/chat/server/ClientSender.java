@@ -25,6 +25,7 @@ public class ClientSender extends Thread {
 	 * Waits for messages from server and sends them to the client. Stops when a
 	 * system message is received.
 	 */
+	@Override
 	public void run() {
 		this.messages = new LinkedList<>();
 		this.keepRunning = true;
@@ -38,8 +39,8 @@ public class ClientSender extends Thread {
 					if (message.getIsSystemMessage()) {
 						if (message.getSystemCode() == 200) {
 							// Message sent from client to logout
-							messageServer.removeUser(message.getRecipient(), client);
 						}
+						messageServer.removeUser(message.getRecipient(), client);
 
 						keepRunning = false;
 						sendSystemMessage(message.getSystemCode());
@@ -60,7 +61,7 @@ public class ClientSender extends Thread {
 	 * @param message
 	 *            A message to be added.
 	 */
-	public synchronized void addMessage(Message message) {
+	protected synchronized void addMessage(Message message) {
 		messages.add(message);
 		notify();
 	}
@@ -74,7 +75,7 @@ public class ClientSender extends Thread {
 	 * @param name
 	 *            The username of the client.
 	 */
-	public void disconnect(boolean isClientListenerClosed, String name) {
+	protected void disconnect(boolean isClientListenerClosed, String name) {
 		Message systemMessage;
 		if (isClientListenerClosed) {
 			// Generating empty message to close the client sender
@@ -91,7 +92,7 @@ public class ClientSender extends Thread {
 	/**
 	 * Sends a system message to terminate the client sender.
 	 */
-	public void stopSender() {
+	protected void stopSender() {
 		Message systemMessage = null;
 		addMessage(systemMessage);
 	}

@@ -33,7 +33,7 @@ public class ClientMessageSender implements Runnable {
 				} else {
 					System.out.print("Enter a username or \"all\" to send to all connected users: ");
 					String receiver = inputReader.readLine();
-					if (!receiver.equals(username)) {
+					if (receiver.equals("all")) {
 						System.out.print("Enter your message: ");
 					}
 					
@@ -92,7 +92,7 @@ public class ClientMessageSender implements Runnable {
 		try {
 			output = new DataOutputStream(client.getOutputStream());
 		} catch (IOException ioException) {
-			ioException.printStackTrace();
+			throw new IOException(ioException);
 		}
 
 		System.out.print("Enter your username: ");
