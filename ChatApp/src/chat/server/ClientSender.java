@@ -1,8 +1,7 @@
 package chat.server;
 
-import java.io.BufferedWriter;
+import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
 import java.net.Socket;
 import java.util.LinkedList;
 import java.util.Map;
@@ -37,13 +36,13 @@ public class ClientSender extends Thread {
 					keepRunning = false;
 				} else {
 					if (message.getIsSystemMessage()) {
-						if (message.getMessageText().equalsIgnoreCase("logout")) {
+						if (message.getSystemCode() == 200) {
 							// Message sent from client to logout
 							messageServer.removeUser(message.getRecipient(), client);
 						}
 
 						keepRunning = false;
-						sendMessagetoOneUser(message.getSender(), message.getMessageText());
+						sendSystemMessage(message.getSystemCode());
 					} else {
 						sendMessage(message);
 					}
@@ -79,11 +78,11 @@ public class ClientSender extends Thread {
 		Message systemMessage;
 		if (isClientListenerClosed) {
 			// Generating empty message to close the client sender
-			systemMessage = new Message("logout", name, "admin");
+			systemMessage = new Message(200);
 		} else {
 			// Generating system message to close the client sender and the
 			// client listener
-			systemMessage = new Message("shutdown", name, "admin");
+			systemMessage = new Message(300);
 		}
 
 		addMessage(systemMessage);
@@ -130,9 +129,20 @@ public class ClientSender extends Thread {
 				sendMessagetoOneUser(recipient, messageText, sender);
 			} else {
 				String errorMessage = recipient + " is not connected.";
-				sendMessagetoOneUser(sender, errorMessage);
+				sendMessagetoOneUser(errorMessage);
 			}
 		}
+	}
+
+	private void sendSystemMessage(int systemCode) {
+		String message = new String();
+		if (systemCode == 300) {
+			message = "shutdown";
+		} else if(systemCode == 200) {
+			message = "logout";
+		}
+		
+		sendMessagetoOneUser(message);
 	}
 
 	/**
@@ -144,11 +154,10 @@ public class ClientSender extends Thread {
 	 * @param errorMessage
 	 *            Information message for the client.
 	 */
-	private void sendMessagetoOneUser(String sender, String errorMessage) {
+	private void sendMessagetoOneUser(String errorMessage) {
 		try {
-			BufferedWriter out = new BufferedWriter(new OutputStreamWriter(client.getOutputStream()));
-			out.write(errorMessage);
-			out.newLine();
+			DataOutputStream out = new DataOutputStream(client.getOutputStream());
+			out.writeUTF(errorMessage);
 			out.flush();
 		} catch (IOException ioException) {
 			ioException.printStackTrace();
@@ -169,18 +178,18 @@ public class ClientSender extends Thread {
 		Map<String, User> clients = messageCenter.getClients();
 		User user = clients.get(recipient);
 
+		// The user is not logged in.
 		if (user == null) {
 			return;
 		}
 
 		try {
-			BufferedWriter out = user.getOutputStream();
+			DataOutputStream out = user.getOutputStream();
 			if (!sender.equalsIgnoreCase("admin")) {
 				messageText = sender + ": " + messageText;
 			}
 
-			out.write(messageText);
-			out.newLine();
+			out.writeUTF(messageText);
 			out.flush();
 		} catch (IOException ioException) {
 			ioException.printStackTrace();
@@ -199,6 +208,7 @@ public class ClientSender extends Thread {
 		messageText = sender + ": " + messageText;
 
 		for (String client : clients.keySet()) {
+			// Message is sent to all user except the sender.
 			if (client == sender) {
 				continue;
 			}
@@ -206,11 +216,11 @@ public class ClientSender extends Thread {
 			User user = clients.get(client);
 
 			try {
-				BufferedWriter out = user.getOutputStream();
-				out.write(messageText);
-				out.newLine();
+				DataOutputStream out = user.getOutputStream();
+				out.writeUTF(messageText);
 				out.flush();
 			} catch (IOException ioException) {
+				System.out.println("Unable to send the message to " + client);
 				ioException.printStackTrace();
 			}
 		}

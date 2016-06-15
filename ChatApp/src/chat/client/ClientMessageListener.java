@@ -1,12 +1,11 @@
 package chat.client;
 
-import java.io.BufferedReader;
+import java.io.DataInputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.Socket;
 
 public class ClientMessageListener implements Runnable {
-	private BufferedReader listener;
+	private DataInputStream listener;
 	private boolean isConnected;
 	private ClientMessageSender messageSender;
 	private Socket client;
@@ -26,7 +25,7 @@ public class ClientMessageListener implements Runnable {
 
 			String message;
 			while (isConnected) {
-				message = listener.readLine();
+				message = listener.readUTF();
 				if (message == null) {
 					// Lost connection
 					isConnected = false;
@@ -34,9 +33,9 @@ public class ClientMessageListener implements Runnable {
 					System.out.println("Disconnected from server.");
 					isConnected = false;
 				} else if (message.equalsIgnoreCase("shutdown")) {
-					System.out.println(
-							"You have been disconnected from server. Enter /reconnect to try to reconnect or /exit to stop the program.");
-					messageSender.sendMessage("shutdown");
+					System.out.print("\nYou have been disconnected from server. ");
+					// Code 300 is system code for shutdown the client listener.
+					messageSender.sendMessage(300);
 					isConnected = false;
 					messageSender.shutdown();
 				} else {
@@ -44,7 +43,7 @@ public class ClientMessageListener implements Runnable {
 				}
 			}
 		} catch (IOException ioException) {
-			System.out.println("Lost connection with server.");
+			System.out.print("Lost connection with server. ");
 			isConnected = false;
 		} finally {
 			try {
@@ -57,7 +56,7 @@ public class ClientMessageListener implements Runnable {
 
 	private void initializeMessageListener() {
 		try {
-			listener = new BufferedReader(new InputStreamReader(client.getInputStream()));
+			listener = new DataInputStream(client.getInputStream());
 		} catch (IOException ioException) {
 			// Socket is closed
 			isConnected = false;
@@ -66,18 +65,44 @@ public class ClientMessageListener implements Runnable {
 
 		if (isConnected) {
 			try {
-				String result = listener.readLine();
-				System.out.println(result);
-				while (!result.equals("Successfully logged in.")) {
+				Integer result = listener.readInt();
+				convertResultCodeToMessage(result);
+				
+				//Code 0 is for successful login.
+				while (result != 0) {
 					messageSender.initializeUsername();
-					result = listener.readLine();
-					System.out.println(result);
+					result = listener.readInt();
+					convertResultCodeToMessage(result);
 				}
 			} catch (IOException ioException) {
 				isConnected = false;
 				ioException.printStackTrace();
 			}
 		}
+	}
+
+	private void convertResultCodeToMessage(Integer result) {
+		String message = new String();
+		switch (result) {
+		case 0:
+			message = "Successfully logged in.";
+			break;
+		case 1:
+			message = "Selected username is already in use. Please select a new one.";
+			break;
+		case 2:
+			message = "Username must be at least 3 characters long.";
+			break;
+		case 3:
+			message = "Selected username can not be used. Please select a new one.";
+			break;
+		case 4:
+			message = "Username must start with english letter.";
+		default:
+			break;
+		}
+		
+		System.out.println(message);
 	}
 
 	/**
@@ -88,5 +113,6 @@ public class ClientMessageListener implements Runnable {
 	 */
 	private void display(String message) {
 		System.out.println(message);
+		System.out.print("Enter your message: ");
 	}
 }

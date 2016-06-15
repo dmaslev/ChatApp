@@ -1,8 +1,7 @@
 package chat.server;
 
-import java.io.BufferedWriter;
+import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -31,6 +30,7 @@ public class Server {
 	 * connections.
 	 * 
 	 * @param args
+	 *            Server port. If null, default value is used.
 	 */
 	private void startServer(String[] args) {
 		isServerOn = true;
@@ -44,12 +44,12 @@ public class Server {
 		} catch (IOException e) {
 			isServerOn = false;
 			e.printStackTrace();
-		} finally {
-			stopServer();
-		}
+		} 
 	}
 
 	/**
+	 * Checks in collection with all connected users if there is a user with
+	 * provided username.
 	 * 
 	 * @param username
 	 * @return Returns true if the user is connected and false otherwise.
@@ -80,7 +80,7 @@ public class Server {
 
 	/**
 	 * Validates the username. If the validation is passed creates a new User
-	 * and adds it in the collection of all conencted user.
+	 * and adds it in the collection of all connected user.
 	 * 
 	 * @param name
 	 *            Username of the user.
@@ -91,8 +91,7 @@ public class Server {
 	 * @param messageListener
 	 *            Message listener of the user.
 	 */
-	protected synchronized void addUser(String name, Socket client, ClientSender messageSender,
-			ClientListener messageListener) {
+	protected synchronized void addUser(String name, Socket client, ClientSender messageSender,	ClientListener messageListener) {
 		int resultCode = validateUsername(name);
 		sendMessageToClient(client, resultCode, name);
 
@@ -150,6 +149,8 @@ public class Server {
 			// The socket is already closed.
 			ioException.printStackTrace();
 		}
+		
+		System.out.println("Server successfully disconnected.");
 	}
 
 	/**
@@ -166,17 +167,24 @@ public class Server {
 			System.out.println(name + " is not connected.");
 		} else {
 			user.getClientSender().disconnect(false, name);
-			try {
-				user.getOutputStream().close();
-			} catch (IOException ioException) {
-				//Output stream already closed.
-				ioException.printStackTrace();
-			}
 		}
 	}
 
+	/**
+	 * Accepts a username, checks if it is a valid username and returns a error
+	 * code. Valid username is at least 3 characters long, starts with English
+	 * letter and differ from special names /admin, administrator, all/
+	 * 
+	 * @param name
+	 * @return 
+	 */
 	private int validateUsername(String name) {
 		int resultCode;
+		if (!Character.isAlphabetic(name.charAt(0))) {
+			System.out.println("Username must start with english letter.");
+			return 4;
+		}
+		
 		if (this.clients.containsKey(name)) {
 			resultCode = 1;
 		} else if (name.length() < 3) {
@@ -214,35 +222,15 @@ public class Server {
 				ClientListener client = new ClientListener(socket, messageCenter, this);
 				client.start();
 			} catch (IOException ioException) {
-				System.out.println("Server successfully disconnected.");
+				isServerOn = false;
 			}
 		}
 	}
 
-	private synchronized void sendMessageToClient(Socket ct, int successfullyLoggedIn, String name) {
-		String message = new String();
-
-		switch (successfullyLoggedIn) {
-		case 0:
-			message = "Successfully logged in.";
-			break;
-		case 1:
-			message = name + " is already in use. Please select a new one.";
-			break;
-		case 2:
-			message = "Username must be at least 3 characters long.";
-			break;
-		case 3:
-			message = name + " can not be used. Please select a new one.";
-			break;
-		default:
-			break;
-		}
-
+	private synchronized void sendMessageToClient(Socket ct, int resultCode, String name) {
 		try {
-			BufferedWriter out = new BufferedWriter(new OutputStreamWriter(ct.getOutputStream()));
-			out.write(message);
-			out.newLine();
+			DataOutputStream out = new DataOutputStream(ct.getOutputStream());
+			out.writeInt(resultCode);
 			out.flush();
 		} catch (IOException ioException) {
 			System.out.println("User has been disconnected. Unable to send the message.");

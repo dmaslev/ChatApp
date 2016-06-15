@@ -22,7 +22,7 @@ public class MessageCenter extends Thread {
 		while (isServerOn) {
 			Message message = getNextMessageFromQueue();
 			if (message.getIsSystemMessage()) {
-				if (message.getMessageText().equalsIgnoreCase("shutdown")) {
+				if (message.getSystemCode() == 300) {
 					this.isServerOn = false;
 				}
 			} else {
@@ -34,8 +34,7 @@ public class MessageCenter extends Thread {
 	/**
 	 * Adds a message to the queue.
 	 * 
-	 * @param message
-	 *            The message to be added.
+	 * @param message The message to be added.
 	 */
 	public synchronized void addMessageToQueue(Message message) {
 		messagesQueue.add(message);
@@ -47,7 +46,8 @@ public class MessageCenter extends Thread {
 	}
 
 	public void disconnect() {
-		Message systemMessage = new Message("shutdown", "admin", "admin");
+		// Code 301 is system code for shutdown the message center.
+		Message systemMessage = new Message(300);
 		addMessageToQueue(systemMessage);
 	}
 

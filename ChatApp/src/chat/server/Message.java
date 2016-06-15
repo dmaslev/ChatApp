@@ -5,6 +5,7 @@ public class Message {
 	private String recipient;
 	private String sender;
 	private boolean isSystemMessage;
+	private int systemCode;
 	
 	public Message(String text, String recipient, String sender) {
 		this.text = text;
@@ -13,6 +14,11 @@ public class Message {
 		this.setSystemMessage();
 	}
 	
+	public Message(int systemCode) {
+		this.systemCode = systemCode;
+		this.isSystemMessage = true;
+	}
+
 	public boolean getIsSystemMessage() {
 		return this.isSystemMessage;
 	}
@@ -27,6 +33,10 @@ public class Message {
 	
 	public String getSender() {
 		return this.sender;
+	}
+	
+	public int getSystemCode() {
+		return this.systemCode;
 	}
 
 	private void setSystemMessage() {

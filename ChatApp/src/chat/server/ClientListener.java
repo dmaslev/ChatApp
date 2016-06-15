@@ -1,15 +1,14 @@
 package chat.server;
 
-import java.io.BufferedReader;
+import java.io.DataInputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.Socket;
 
 public class ClientListener extends Thread {
 	private Socket client;
 	private MessageCenter messageCenter;
 	private Server messageServer;
-	private BufferedReader input;
+	private DataInputStream input;
 	private String usernameAttched;
 	private boolean keepRunning;
 
@@ -25,7 +24,7 @@ public class ClientListener extends Thread {
 	public void run() {
 		this.keepRunning = true;
 		try {
-			this.input = new BufferedReader(new InputStreamReader(client.getInputStream()));
+			this.input = new DataInputStream(client.getInputStream());
 		} catch (IOException ioException) {
 			keepRunning = false;
 		}
@@ -35,22 +34,23 @@ public class ClientListener extends Thread {
 
 		while (keepRunning) {
 			try {
-				String messageReceived = input.readLine();
-				String recipient = input.readLine();
-				if (messageReceived.equalsIgnoreCase("logout") && recipient.equalsIgnoreCase(usernameAttched)) {
+				int messageType = input.readInt();
+				String textReceived = input.readUTF();
+				if (messageType == 200) {
 					keepRunning = false;
 					clientSender.disconnect(true, usernameAttched);
-				} else if (messageReceived.equalsIgnoreCase("admin-register") && usernameAttched == null) {
-					messageServer.addUser(recipient, client, clientSender, this);
-				} else if (messageReceived.equalsIgnoreCase("shutdown")) {
+				} else if (messageType == 100) {
+					messageServer.addUser(textReceived, client, clientSender, this);
+				} else if (messageType == 300) {
 					// Client sender already closed. The client asked to
 					// close the clientListener
 					messageServer.removeUser(usernameAttched, client);
 					keepRunning = false;
-				} else {
-					Message message = new Message(messageReceived, recipient, usernameAttched);
+				} else if (messageType == 400){
+					String recipient = input.readUTF();
+					Message message = new Message(textReceived, recipient, usernameAttched);
 					messageCenter.addMessageToQueue(message);
-				}
+				} 
 			} catch (IOException ioException) {
 				// Connection lost
 				clientSender.stopSender();

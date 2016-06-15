@@ -34,6 +34,9 @@ public class ServerInputManager extends Thread {
 		}
 	}
 
+	/**
+	 * Prints information about all supported commands.
+	 */
 	private void printHelpMenu() {
 		System.out.println("- To stop the server enter a command \"/disconnect\"");
 		System.out.println("- To disconnect a user enter a command in format: \"remove: [username]\"");
