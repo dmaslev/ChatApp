@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.Socket;
 
+import chat.constants.SystemCode;
+
 public class ClientMessageSender implements Runnable {
 	private BufferedReader inputReader;
 	private DataOutputStream output;
@@ -37,7 +39,7 @@ public class ClientMessageSender implements Runnable {
 						System.out.print("Enter your message: ");
 					}
 					
-					sendMessage(400, message, receiver);
+					sendMessage(SystemCode.REGULAR_MESSAGE, message, receiver);
 				}
 			}
 		} catch (IOException ioException) {
@@ -107,8 +109,7 @@ public class ClientMessageSender implements Runnable {
 		}
 
 		try {
-			// Code 100 is system code for register message.
-			sendMessage(100, username);
+			sendMessage(SystemCode.REGISTER, username);
 		} catch (IOException ioException) {
 			keepRunning = false;
 			throw new IOException(ioException);
@@ -139,8 +140,7 @@ public class ClientMessageSender implements Runnable {
 	 */
 	private void stopClient() {
 		try {
-			// Code 200 is system code, used for logging out.
-			output.writeInt(200);
+			output.writeInt(SystemCode.LOGOUT);
 			output.writeUTF(username);
 			output.flush();
 			inputReader.close();

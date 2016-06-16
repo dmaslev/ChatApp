@@ -6,6 +6,8 @@ import java.net.Socket;
 import java.util.LinkedList;
 import java.util.Map;
 
+import chat.constants.SystemCode;
+
 public class ClientSender extends Thread {
 	private LinkedList<Message> messages;
 	private MessageCenter messageCenter;
@@ -37,9 +39,6 @@ public class ClientSender extends Thread {
 					keepRunning = false;
 				} else {
 					if (message.getIsSystemMessage()) {
-						if (message.getSystemCode() == 200) {
-							// Message sent from client to logout
-						}
 						messageServer.removeUser(message.getRecipient(), client);
 
 						keepRunning = false;
@@ -78,12 +77,12 @@ public class ClientSender extends Thread {
 	protected void disconnect(boolean isClientListenerClosed, String name) {
 		Message systemMessage;
 		if (isClientListenerClosed) {
-			// Generating empty message to close the client sender
-			systemMessage = new Message(200);
+			// Generating systems message to close the client sender
+			systemMessage = new Message(SystemCode.LOGOUT);
 		} else {
 			// Generating system message to close the client sender and the
 			// client listener
-			systemMessage = new Message(300);
+			systemMessage = new Message(SystemCode.SHUTDOWN);
 		}
 
 		addMessage(systemMessage);
@@ -137,9 +136,9 @@ public class ClientSender extends Thread {
 
 	private void sendSystemMessage(int systemCode) {
 		String message = new String();
-		if (systemCode == 300) {
+		if (systemCode == SystemCode.SHUTDOWN) {
 			message = "shutdown";
-		} else if(systemCode == 200) {
+		} else if(systemCode == SystemCode.LOGOUT) {
 			message = "logout";
 		}
 		

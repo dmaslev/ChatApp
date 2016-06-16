@@ -4,6 +4,8 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.net.Socket;
 
+import chat.constants.SystemCode;
+
 public class ClientMessageListener implements Runnable {
 	private DataInputStream listener;
 	private boolean isConnected;
@@ -34,8 +36,7 @@ public class ClientMessageListener implements Runnable {
 					isConnected = false;
 				} else if (message.equalsIgnoreCase("shutdown")) {
 					System.out.print("\nYou have been disconnected from server. ");
-					// Code 300 is system code for shutdown the client listener.
-					messageSender.sendMessage(300);
+					messageSender.sendMessage(SystemCode.SHUTDOWN);
 					isConnected = false;
 					messageSender.shutdown();
 				} else {
@@ -69,8 +70,7 @@ public class ClientMessageListener implements Runnable {
 				Integer result = listener.readInt();
 				convertResultCodeToMessage(result);
 				
-				//Code 0 is for successful login.
-				while (result != 0) {
+				while (result != SystemCode.SUCCESSFUL_LOGIN) {
 					messageSender.initializeUsername();
 					result = listener.readInt();
 					convertResultCodeToMessage(result);

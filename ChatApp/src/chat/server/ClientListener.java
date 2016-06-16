@@ -4,6 +4,8 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.net.Socket;
 
+import chat.constants.SystemCode;
+
 public class ClientListener extends Thread {
 	private Socket client;
 	private MessageCenter messageCenter;
@@ -36,17 +38,17 @@ public class ClientListener extends Thread {
 			try {
 				int messageType = input.readInt();
 				String textReceived = input.readUTF();
-				if (messageType == 200) {
+				if (messageType == SystemCode.LOGOUT) {
 					keepRunning = false;
 					clientSender.disconnect(true, usernameAttched);
-				} else if (messageType == 100) {
+				} else if (messageType == SystemCode.REGISTER) {
 					messageServer.addUser(textReceived, client, clientSender, this);
-				} else if (messageType == 300) {
+				} else if (messageType == SystemCode.SHUTDOWN) {
 					// Client sender already closed. The client asked to
 					// close the clientListener
 					messageServer.removeUser(usernameAttched, client);
 					keepRunning = false;
-				} else if (messageType == 400){
+				} else if (messageType == SystemCode.REGULAR_MESSAGE){
 					String recipient = input.readUTF();
 					Message message = new Message(textReceived, recipient, usernameAttched);
 					messageCenter.addMessageToQueue(message);

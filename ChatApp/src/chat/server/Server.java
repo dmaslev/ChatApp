@@ -11,6 +11,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Scanner;
 
+import chat.constants.SystemCode;
+
 public class Server {
 	private final int DEFAULT_PORT = 2222;
 	private ServerSocket serverSocket;
@@ -97,7 +99,7 @@ public class Server {
 		int resultCode = validateUsername(name);
 		sendMessageToClient(client, resultCode, name);
 
-		if (resultCode == 0) {
+		if (resultCode == SystemCode.SUCCESSFUL_LOGIN) {
 			User connectedUser = new User(client, name, messageSender);
 			messageListener.setUsername(name);
 			clients.put(name, connectedUser);

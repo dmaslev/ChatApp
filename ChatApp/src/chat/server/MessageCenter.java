@@ -3,6 +3,8 @@ package chat.server;
 import java.util.LinkedList;
 import java.util.Map;
 
+import chat.constants.SystemCode;
+
 public class MessageCenter extends Thread {
 
 	private Server server;
@@ -22,7 +24,7 @@ public class MessageCenter extends Thread {
 		while (isServerOn) {
 			Message message = getNextMessageFromQueue();
 			if (message.getIsSystemMessage()) {
-				if (message.getSystemCode() == 300) {
+				if (message.getSystemCode() == SystemCode.SHUTDOWN) {
 					this.isServerOn = false;
 				}
 			} else {
@@ -46,8 +48,7 @@ public class MessageCenter extends Thread {
 	}
 
 	public void disconnect() {
-		// Code 300 is system code for shutdown the message center.
-		Message systemMessage = new Message(300);
+		Message systemMessage = new Message(SystemCode.SHUTDOWN);
 		addMessageToQueue(systemMessage);
 	}
 
