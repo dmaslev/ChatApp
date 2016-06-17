@@ -3,13 +3,12 @@ package chat.server;
 import java.util.Scanner;
 
 public class ServerInputManager extends Thread {
+	
 	private Server server;
-	private Scanner reader;
 	private boolean isServerInputManagerOn;
 
-	public ServerInputManager(Server server, Scanner reader) {
+	public ServerInputManager(Server server) {
 		this.setServer(server);
-		this.setReader(reader);
 	}
 
 	/**
@@ -17,6 +16,8 @@ public class ServerInputManager extends Thread {
 	 */
 	public void run() {
 		isServerInputManagerOn = true;
+		
+		Scanner reader = new Scanner(System.in);
 		while (isServerInputManagerOn) {
 			String line = reader.nextLine();
 			if (line.equalsIgnoreCase("/help")) {
@@ -32,8 +33,17 @@ public class ServerInputManager extends Thread {
 				System.out.println("Invalid command.");
 			}
 		}
+		
+		reader.close();
 	}
 
+	/**
+	 * Stops waiting for user input.
+	 */
+	protected void disconnect() {
+		isServerInputManagerOn = false;
+	}
+	
 	/**
 	 * Prints information about all supported commands.
 	 */
@@ -41,17 +51,6 @@ public class ServerInputManager extends Thread {
 		System.out.println("- To stop the server enter a command \"/disconnect\"");
 		System.out.println("- To disconnect a user enter a command in format: \"remove: [username]\"");
 		System.out.println("- To see all connected users enter a command \"/listall\"");
-	}
-
-	/**
-	 * Stops waiting for user input.
-	 */
-	public void disconnect() {
-		isServerInputManagerOn = false;
-	}
-
-	private void setReader(Scanner reader) {
-		this.reader = reader;
 	}
 
 	private void setServer(Server server) {

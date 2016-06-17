@@ -6,15 +6,15 @@ import java.net.Socket;
 
 import chat.constants.SystemCode;
 
-public class ClientListener extends Thread {
+public class ServersideListener extends Thread {
+
 	private Socket client;
 	private MessageCenter messageCenter;
 	private Server messageServer;
-	private DataInputStream input;
 	private String usernameAttched;
 	private boolean keepRunning;
 
-	public ClientListener(Socket client, MessageCenter messageCenter, Server messageServer) {
+	public ServersideListener(Socket client, MessageCenter messageCenter, Server messageServer) {
 		this.client = client;
 		this.messageCenter = messageCenter;
 		this.messageServer = messageServer;
@@ -23,19 +23,16 @@ public class ClientListener extends Thread {
 	/**
 	 * Listens for messages from client and sends them to message center.
 	 */
+	@Override
 	public void run() {
 		this.keepRunning = true;
+		ServersideSender clientSender = new ServersideSender(client, messageCenter, messageServer);
+
 		try {
-			this.input = new DataInputStream(client.getInputStream());
-		} catch (IOException ioException) {
-			keepRunning = false;
-		}
+			DataInputStream input = new DataInputStream(client.getInputStream());
+			clientSender.start();
 
-		ClientSender clientSender = new ClientSender(client, messageCenter, messageServer);
-		clientSender.start();
-
-		while (keepRunning) {
-			try {
+			while (keepRunning) {
 				int messageType = input.readInt();
 				String textReceived = input.readUTF();
 				if (messageType == SystemCode.LOGOUT) {
@@ -48,17 +45,17 @@ public class ClientListener extends Thread {
 					// close the clientListener
 					messageServer.removeUser(usernameAttched, client);
 					keepRunning = false;
-				} else if (messageType == SystemCode.REGULAR_MESSAGE){
+				} else if (messageType == SystemCode.REGULAR_MESSAGE) {
 					String recipient = input.readUTF();
 					Message message = new Message(textReceived, recipient, usernameAttched);
 					messageCenter.addMessageToQueue(message);
-				} 
-			} catch (IOException ioException) {
-				// Connection lost
-				clientSender.stopSender();
-				messageServer.removeUser(usernameAttched, client);
-				keepRunning = false;
+				}
 			}
+		} catch (IOException ioException) {
+			// Connection lost
+			clientSender.stopSender();
+			messageServer.removeUser(usernameAttched, client);
+			keepRunning = false;
 		}
 	}
 
@@ -66,7 +63,7 @@ public class ClientListener extends Thread {
 		return this.client;
 	}
 
-	public void setUsername(String name) {
+	protected void setUsername(String name) {
 		this.usernameAttched = name;
 	}
 }

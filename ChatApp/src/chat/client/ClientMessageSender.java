@@ -1,56 +1,58 @@
 package chat.client;
 
-import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.Socket;
+import java.util.Scanner;
 
 import chat.constants.SystemCode;
 
 public class ClientMessageSender implements Runnable {
-	private BufferedReader inputReader;
-	private DataOutputStream output;
-	private boolean keepRunning;
-	private String username;
-	private Socket client;
 
-	public ClientMessageSender(Socket socket) {
+	private Socket client;
+	private DataOutputStream output;
+	private Scanner inputReader;
+
+	// Boolean variable used to stop the run method.
+	private boolean isRunning;
+	private String username;
+
+	public ClientMessageSender(Socket socket, Scanner inputReader) {
 		this.client = socket;
-		this.keepRunning = true;
-		this.inputReader = new BufferedReader(new InputStreamReader(System.in));
+		this.inputReader = inputReader;
 	}
 
 	public void run() {
+		this.isRunning = true;
+
 		setUsername(username);
 		try {
-			System.out.print("Enter your message: ");
-			while (keepRunning) {
-				String message = inputReader.readLine();
-				if (message.equalsIgnoreCase(UserCommands.logoutCommand)) {
+			System.out.println("Enter your message: ");
+			while (isRunning) {
+				String message = inputReader.nextLine();
+				if (message.equalsIgnoreCase(UserCommands.LOGOUT)) {
+					// User asked to logout.
 					stopClient();
-					keepRunning = false;
-				} else if (message.equalsIgnoreCase(UserCommands.exitCommand)) {
-					keepRunning = false;
+					isRunning = false;
+				} else if (message.equalsIgnoreCase(UserCommands.EXIT)) {
+					// Exit command is entered. Stop the run method.
+					isRunning = false;
 				} else {
-					System.out.print("Enter a username or \"all\" to send to all connected users: ");
-					String receiver = inputReader.readLine();
-					if (receiver.equals("all")) {
-						System.out.print("Enter your message: ");
-					}
-					
+					System.out.print("Enter a username or \"/all\" to send to all connected users: ");
+					String receiver = inputReader.nextLine();
+
 					sendMessage(SystemCode.REGULAR_MESSAGE, message, receiver);
 				}
 			}
 		} catch (IOException ioException) {
-			keepRunning = false;
+			isRunning = false;
 		} finally {
-			try {
-				inputReader.close();
-			} catch (IOException ioException) {
-				ioException.printStackTrace();
-			}
+			inputReader.close();
 		}
+	}
+
+	public String getUsername() {
+		return this.username;
 	}
 
 	/**
@@ -68,7 +70,6 @@ public class ClientMessageSender implements Runnable {
 		output.writeUTF(recipient);
 		output.flush();
 	}
-	
 
 	private void sendMessage(int messageCode, String username) throws IOException {
 		output.writeInt(messageCode);
@@ -94,30 +95,25 @@ public class ClientMessageSender implements Runnable {
 		try {
 			output = new DataOutputStream(client.getOutputStream());
 		} catch (IOException ioException) {
+			ioException.printStackTrace();
 			throw new IOException(ioException);
 		}
 
 		System.out.print("Enter your username: ");
 		try {
-			username = inputReader.readLine();
+			username = inputReader.nextLine();
 			while (!validateUsername(username)) {
 				System.out.print("Enter your username: ");
-				username = inputReader.readLine();
+				username = inputReader.nextLine();
 			}
+
+			sendMessage(SystemCode.REGISTER, username);
+
 		} catch (IOException ioException) {
 			ioException.printStackTrace();
-		}
-
-		try {
-			sendMessage(SystemCode.REGISTER, username);
-		} catch (IOException ioException) {
-			keepRunning = false;
+			isRunning = false;
 			throw new IOException(ioException);
 		}
-	}
-
-	protected String getUsername() {
-		return this.username;
 	}
 
 	protected void setUsername(String name) {
@@ -148,7 +144,7 @@ public class ClientMessageSender implements Runnable {
 			ioException.printStackTrace();
 		}
 
-		keepRunning = false;
+		isRunning = false;
 	}
 
 	/**
@@ -165,12 +161,11 @@ public class ClientMessageSender implements Runnable {
 			System.out.println("Username must start with english letter.");
 			return false;
 		}
-		
+
 		if (name.length() < 3) {
 			System.out.println("Username must be at least 3 characters long.");
 			return false;
-		} else if (name.equalsIgnoreCase("all") || name.equalsIgnoreCase("admin")
-				|| name.equalsIgnoreCase("administrator")) {
+		} else if (name.equalsIgnoreCase("admin") || name.equalsIgnoreCase("administrator")) {
 			System.out.println(name + " can not be used. Please select a new one.");
 			return false;
 		}

@@ -8,19 +8,19 @@ import java.util.Date;
 /**
  * Instance of user class is created for every client connected. It keeps
  * information about the client.
- * 
- * @author I331285
- *
+ 
  */
 public class User {
+	
 	private Socket socket;
+	private DataOutputStream writer;
+	private ServersideSender messageSender;
+	
 	private Date connectedDate;
 	private String username;
 	private String adress;
-	private ClientSender messageSender;
-	DataOutputStream writer;
 	
-	public User(Socket socket, String username, ClientSender messageSender) {
+	public User(Socket socket, String username, ServersideSender messageSender) {
 		this.socket = socket;
 		this.adress = socket.getLocalAddress().toString();
 		this.username = username;
@@ -32,7 +32,7 @@ public class User {
 		return this.socket;
 	}
 
-	public ClientSender getClientSender() {
+	public ServersideSender getClientSender() {
 		return this.messageSender;
 	}
 
@@ -48,11 +48,12 @@ public class User {
 		return this.username;
 	}
 
+	/**
+	 * Returns formated string with information about the user.
+	 */
 	@Override
 	public String toString() {
 		String info = "User: " + username + "(" + adress + "), connected: " + connectedDate;
-		// String.format("User: %s (%s), connected: %s", username, address,
-		// connectedDate);
 		return info;
 	}
 }

@@ -8,23 +8,27 @@ import chat.constants.SystemCode;
 public class MessageCenter extends Thread {
 
 	private Server server;
+	private boolean isServerOn;
+
 	private Map<String, User> clients;
 	private LinkedList<Message> messagesQueue;
-	private boolean isServerOn;
 
 	public MessageCenter(Server server) {
 		this.server = server;
-		this.clients = this.server.getClients();
-		this.isServerOn = true;
 	}
 
+	@Override
 	public void run() {
+		this.isServerOn = true;
 		this.messagesQueue = new LinkedList<Message>();
+		this.clients = this.server.getClients();
 
 		while (isServerOn) {
 			Message message = getNextMessageFromQueue();
 			if (message.getIsSystemMessage()) {
 				if (message.getSystemCode() == SystemCode.SHUTDOWN) {
+					// Server is shut down. A system message is sent to shut
+					// down the message center.
 					this.isServerOn = false;
 				}
 			} else {
@@ -36,7 +40,8 @@ public class MessageCenter extends Thread {
 	/**
 	 * Adds a message to the queue.
 	 * 
-	 * @param message The message to be added.
+	 * @param message
+	 *            The message to be added.
 	 */
 	public synchronized void addMessageToQueue(Message message) {
 		messagesQueue.add(message);
@@ -48,6 +53,7 @@ public class MessageCenter extends Thread {
 	}
 
 	public void disconnect() {
+		// Add system message to stop the run method in message center.
 		Message systemMessage = new Message(SystemCode.SHUTDOWN);
 		addMessageToQueue(systemMessage);
 	}

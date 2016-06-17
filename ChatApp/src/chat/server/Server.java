@@ -2,6 +2,7 @@ package chat.server;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.net.BindException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -9,24 +10,27 @@ import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Scanner;
 
 import chat.constants.SystemCode;
 
 public class Server {
+
+	// Default port number is used if user does not provide valid port number.
 	private final int DEFAULT_PORT = 2222;
 	private ServerSocket serverSocket;
-	private Scanner reader;
-	private boolean isServerOn;
-	private Socket socket;
+	private boolean keepRunning;
+	
+	// Collection for all logged in users.
 	private Map<String, User> clients;
+	
+	// Collection for connected users, before they log in.
 	private HashSet<Socket> connectedClients;
+	
 	private MessageCenter messageCenter;
 	private ServerInputManager serverInput;
-
-	public static void main(String[] args) {
-		Server server = new Server();
-		server.startServer(args);
+	
+	public Server() {
+		
 	}
 
 	/**
@@ -37,18 +41,24 @@ public class Server {
 	 *            Server port. If null, default value is used.
 	 */
 	private void startServer(String[] args) {
-		isServerOn = true;
+		keepRunning = true;
 		try {
 			initializeServer(args);
-			messageCenter = new MessageCenter(this);
-			messageCenter.start();
-			serverInput = new ServerInputManager(this, reader);
-			serverInput.start();
-			waitForConnections();
+			
+			if (keepRunning) {
+				messageCenter = new MessageCenter(this);
+				messageCenter.start();
+				serverInput = new ServerInputManager(this);
+				serverInput.start();
+				
+				waitForConnections();
+			}
+		} catch (BindException bindException) {
+			bindException.printStackTrace();
 		} catch (IOException e) {
-			isServerOn = false;
+			keepRunning = false;
 			e.printStackTrace();
-		} 
+		}
 	}
 
 	/**
@@ -95,7 +105,8 @@ public class Server {
 	 * @param messageListener
 	 *            Message listener of the user.
 	 */
-	protected synchronized void addUser(String name, Socket client, ClientSender messageSender,	ClientListener messageListener) {
+	protected synchronized void addUser(String name, Socket client, ServersideSender messageSender,
+			ServersideListener messageListener) {
 		int resultCode = validateUsername(name);
 		sendMessageToClient(client, resultCode, name);
 
@@ -113,8 +124,8 @@ public class Server {
 	 * @param username
 	 *            Name of the user to be removed.
 	 * @param client
-	 *            Used if the user is connected, but not logged in with username.
-	 *            yet.
+	 *            Used if the user is connected, but not logged in with
+	 *            username. yet.
 	 */
 	protected synchronized void removeUser(String username, Socket client) {
 		if (username == null) {
@@ -138,14 +149,14 @@ public class Server {
 	 * connected users and closes the server socket.
 	 */
 	protected void stopServer() {
-		isServerOn = false;
+		keepRunning = false;
 		for (String username : clients.keySet()) {
 			User user = clients.get(username);
 			if (user != null) {
 				user.getClientSender().disconnect(false, username);
 			}
 		}
-		
+
 		for (Socket socket : connectedClients) {
 			try {
 				socket.close();
@@ -162,7 +173,7 @@ public class Server {
 			// The socket is already closed.
 			ioException.printStackTrace();
 		}
-		
+
 		System.out.println("Server successfully disconnected.");
 	}
 
@@ -189,7 +200,7 @@ public class Server {
 	 * letter and differ from special names /admin, administrator, all/
 	 * 
 	 * @param name
-	 * @return 
+	 * @return
 	 */
 	private int validateUsername(String name) {
 		int resultCode;
@@ -197,13 +208,12 @@ public class Server {
 			System.out.println("Username must start with english letter.");
 			return 4;
 		}
-		
+
 		if (this.clients.containsKey(name)) {
 			resultCode = 1;
 		} else if (name.length() < 3) {
 			resultCode = 2;
-		} else if (name.equalsIgnoreCase("all") || name.equalsIgnoreCase("admin")
-				|| name.equalsIgnoreCase("administrator") || name.equalsIgnoreCase("/stop")) {
+		} else if (name.equalsIgnoreCase("admin") || name.equalsIgnoreCase("administrator")) {
 			resultCode = 3;
 		} else {
 			resultCode = 0;
@@ -218,7 +228,7 @@ public class Server {
 			int port = serverSocket.getLocalPort();
 
 			System.out.println("Server adress: " + serverAdress + " on port: " + port);
-			System.out.println("Server is ready to accept conenctions");
+			System.out.println("Server is ready to accept connections");
 			System.out.println("Enter \"/help\" to see the help menu.");
 		} catch (UnknownHostException unknownHostException) {
 			// Unable to read local address.
@@ -227,16 +237,17 @@ public class Server {
 	}
 
 	private void waitForConnections() {
-		while (isServerOn) {
+		while (keepRunning) {
 			try {
-				socket = serverSocket.accept();
+				Socket socket = serverSocket.accept();
 				connectedClients.add(socket);
 				System.out.println(socket.getInetAddress() + " connected");
 
-				ClientListener client = new ClientListener(socket, messageCenter, this);
+				ServersideListener client = new ServersideListener(socket, messageCenter, this);
 				client.start();
 			} catch (IOException ioException) {
-				isServerOn = false;
+				// Server socket was closed while waiting for connections.
+				keepRunning = false;
 			}
 		}
 	}
@@ -248,30 +259,45 @@ public class Server {
 			out.flush();
 		} catch (IOException ioException) {
 			System.out.println("User has been disconnected. Unable to send the message.");
+			ioException.printStackTrace();
 		}
 	}
 
-	private void initializeServer(String[] args) throws IOException, NumberFormatException {
+	private void initializeServer(String[] args) throws IOException, NumberFormatException, BindException {
 		int port = DEFAULT_PORT;
 		try {
-			if (args.length > 0) {
+			if (args.length == 1) {
 				port = Integer.parseInt(args[0]);
+			} else if (args.length > 1) {
+				System.out.println("Unknow number of arguments. Start the program with only one "
+						+ "argument for port number or without any arguments to use the default one.");
+				keepRunning = false;
 			}
 		} catch (NumberFormatException numberFormatException) {
 			System.out.println(args[0] + " is not a valid port. Default value will be used.");
+			numberFormatException.printStackTrace();
 		}
 
-		serverSocket = new ServerSocket(port);
+		try {
+			serverSocket = new ServerSocket(port);
+		} catch (BindException bindException) {
+			System.out.println("Port " + port + " is already in use.");
+			keepRunning = false;
+			throw new IOException(bindException);
+		}
 
-		if (isServerOn) {
-			reader = new Scanner(System.in);
-			
-			// All logged in  clients.
+		if (keepRunning) {
+			// All logged in clients.
 			clients = new HashMap<>();
-			
+
 			// Collection with connected, but not logged in users.
 			connectedClients = new HashSet<>();
 			printWelcomeMessage();
 		}
+	}
+
+	public static void main(String[] args) {
+		Server server = new Server();
+		server.startServer(args);
 	}
 }

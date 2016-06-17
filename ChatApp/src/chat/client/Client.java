@@ -1,68 +1,93 @@
 package chat.client;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.Scanner;
 
 public class Client {
-	private final int DEFAULT_PORT_NUMBER = 2222;
-	private Socket socket;
-	private int port;
-	private String serverAdress;
-	private ClientMessageListener listener;
-	private BufferedReader inputReader;
 
-	public static void main(String[] args) {
-		Client client = new Client();
-		client.initializeClient(args);
-	}
+	// Default port number is used if user does not provide valid port number.
+	private final int DEFAULT_PORT_NUMBER = 2222;
+	
+	private String serverAdress;
+	private int port;
+	
+	private Scanner inputReader;
 
 	/**
-	 * Sets connection to the server. Opens input and ouput streams.
+	 * Sets connection to the server. Opens data input and output streams.
+	 * 
+	 * @throws IOException
+	 *             If error occurs when reading from data input.
 	 */
-	private void initializeClient(String[] args) {
-		inputReader = new BufferedReader(new InputStreamReader(System.in));
-		openSocket(args);
+	private void initializeClient(String[] args) throws IOException {
+		try {
+			setSocketParameters(args);
+		} catch (IOException ioException) {
+			// Reading input problem.
+			ioException.printStackTrace();
+			throw new IOException(ioException);
+		}
 
 		try {
-			socket = new Socket(serverAdress, port);
-			System.out.println("Successfully connected to: " + serverAdress);
-			ClientMessageSender sender = new ClientMessageSender(socket);
-			sender.initializeUsername();
-			listener = new ClientMessageListener(socket, sender);
-			Thread listenerThread = new Thread(listener);
-			listenerThread.start();
-		} catch (UnknownHostException unknownHostException) {
-			System.out.println("Unable to connect to " + serverAdress);
-			unknownHostException.printStackTrace();
-		} catch (IOException ioException) {
-			System.out.println("Unable to connect to " + serverAdress);
-			ioException.printStackTrace();
+			startClient();
+		} catch (InterruptedException interruptedException) {
+			// Main thread was interrupted before client message listener was
+			// started.
+			interruptedException.printStackTrace();
 		}
 	}
 
-	private void openSocket(String[] args) {
+	private void startClient() throws IOException, InterruptedException {
+		try {
+			Socket socket = new Socket(serverAdress, port);
+			System.out.println("Successfully connected to: " + serverAdress + " on port: " + port);
+			ClientMessageSender sender = new ClientMessageSender(socket, inputReader);
+			sender.initializeUsername();
+			
+			ClientMessageListener listener = new ClientMessageListener(socket, sender);
+			Thread listenerThread = new Thread(listener);
+			listenerThread.start();
+			listenerThread.join();
+		} catch (UnknownHostException unknownHostException) {
+			System.out.println(serverAdress + " can not be determinated.");
+			unknownHostException.printStackTrace();
+			throw new IOException(unknownHostException);
+		} catch (IOException ioException) {
+			System.out.println("Unable to connect to " + serverAdress + " on port " + port);
+			ioException.printStackTrace();
+			throw new IOException(ioException);
+		}
+	}
+
+	private void setSocketParameters(String[] args) throws IOException {
+		// Args can empty but not null.
 		if (args.length > 0) {
 			serverAdress = args[0];
+			if (args.length > 1) {
+				try {
+					port = Integer.parseInt(args[1]);
+				} catch (NumberFormatException numberFormatException) {
+					System.out.println(args[1] + " is not valid port number. Default port number will be used.");
+					port = DEFAULT_PORT_NUMBER;
+					numberFormatException.printStackTrace();
+				}
+			}
 		} else {
 			System.out.print("Enter host adress/ip adress of server/: ");
-			try {
-				serverAdress = inputReader.readLine();
-				
-				port = DEFAULT_PORT_NUMBER;
-				if (args.length > 1) {
-					try {
-						port = Integer.parseInt(args[1]);
-					} catch (NumberFormatException numberFormatException) {
-						System.out.println(args[1] + " is not valid port number. Default port number will be used.");
-						port = DEFAULT_PORT_NUMBER;
-					}
-				}
-			} catch (IOException ioException) {
-				ioException.printStackTrace();
-			}
+			inputReader = new Scanner(System.in);
+			serverAdress = inputReader.nextLine();
+			port = DEFAULT_PORT_NUMBER;
+		}
+	}
+
+	public static void main(String[] args) {
+		Client client = new Client();
+		try {
+			client.initializeClient(args);
+		} catch (IOException ioException) {
+			ioException.printStackTrace();
 		}
 	}
 }

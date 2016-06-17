@@ -1,6 +1,7 @@
 package chat.client;
 
 public class UserCommands {
-	public static String logoutCommand = "/logout";
-	public static String exitCommand = "/exit";
+	
+	public static final String LOGOUT = "/logout";
+	public static final String EXIT = "/exit";
 }

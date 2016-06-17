@@ -7,45 +7,53 @@ import java.net.Socket;
 import chat.constants.SystemCode;
 
 public class ClientMessageListener implements Runnable {
-	private DataInputStream listener;
-	private boolean isConnected;
-	private ClientMessageSender messageSender;
+
 	private Socket client;
+	private DataInputStream listener;
+	private ClientMessageSender messageSender;
+
+	// Boolean variable used to stop the run method.
+	private boolean isRunning;
 
 	public ClientMessageListener(Socket client, ClientMessageSender messageSender) {
 		this.client = client;
 		this.messageSender = messageSender;
-		this.isConnected = true;
 	}
 
 	public void run() {
-		Thread senderThread = new Thread(messageSender);
+		this.isRunning = true;
 
 		try {
-			initializeMessageListener();
+			if (!initializeMessageListener()) {
+				// Error was occurred during initializing message listener.
+				return;
+			}
+
+			Thread senderThread = new Thread(messageSender);
 			senderThread.start();
 
-			String message;
-			while (isConnected) {
-				message = listener.readUTF();
-				if (message == null) {
-					// Lost connection
-					isConnected = false;
-				} else if (message.equalsIgnoreCase("logout")) {
-					System.out.println("Disconnected from server.");
-					isConnected = false;
+			while (isRunning) {
+				String message = listener.readUTF();
+				if (message.equalsIgnoreCase("logout")) {
+					// User asked to logout.
+					System.out.println("Successfully logged out.");
+					isRunning = false;
 				} else if (message.equalsIgnoreCase("shutdown")) {
+					// Server was shutdown or removed the user.
 					System.out.print("\nYou have been disconnected from server. ");
+					
+					// Sending a system message to stop message sender.
 					messageSender.sendMessage(SystemCode.SHUTDOWN);
-					isConnected = false;
+					isRunning = false;
 					messageSender.shutdown();
 				} else {
 					display(message);
 				}
 			}
 		} catch (IOException ioException) {
+			// Unexpected connection lost.
 			System.out.print("\nLost connection with server. ");
-			isConnected = false;
+			isRunning = false;
 			messageSender.shutdown();
 		} finally {
 			try {
@@ -56,32 +64,48 @@ public class ClientMessageListener implements Runnable {
 		}
 	}
 
-	private void initializeMessageListener() {
+	/**
+	 * 
+	 * @return Returns false if error occurs while opening data input stream,
+	 *         reading from input stream or reading result message from socket
+	 *         input stream.
+	 */
+	private boolean initializeMessageListener() {
 		try {
 			listener = new DataInputStream(client.getInputStream());
 		} catch (IOException ioException) {
-			// Socket is closed
-			isConnected = false;
+			// Unable to open input stream.
 			ioException.printStackTrace();
+			return false;
 		}
 
-		if (isConnected) {
+		if (isRunning) {
 			try {
 				Integer result = listener.readInt();
 				convertResultCodeToMessage(result);
-				
+
+				// Looping until a message for successful login is received.
 				while (result != SystemCode.SUCCESSFUL_LOGIN) {
 					messageSender.initializeUsername();
 					result = listener.readInt();
 					convertResultCodeToMessage(result);
 				}
 			} catch (IOException ioException) {
-				isConnected = false;
 				ioException.printStackTrace();
+				return false;
 			}
 		}
+
+		return true;
 	}
 
+	/**
+	 * Accepts system code sent from server and prints a message depending on
+	 * code value.
+	 * 
+	 * @param result
+	 *            Result code sent from server.
+	 */
 	private void convertResultCodeToMessage(Integer result) {
 		String message = new String();
 		switch (result) {
@@ -99,10 +123,12 @@ public class ClientMessageListener implements Runnable {
 			break;
 		case 4:
 			message = "Username must start with english letter.";
+			break;
 		default:
+			message = "Unknown system code.";
 			break;
 		}
-		
+
 		System.out.println(message);
 	}
 
@@ -114,6 +140,5 @@ public class ClientMessageListener implements Runnable {
 	 */
 	private void display(String message) {
 		System.out.println(message);
-		System.out.print("Enter your message: ");
 	}
 }

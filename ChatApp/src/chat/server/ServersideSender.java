@@ -8,15 +8,17 @@ import java.util.Map;
 
 import chat.constants.SystemCode;
 
-public class ClientSender extends Thread {
-	private LinkedList<Message> messages;
-	private MessageCenter messageCenter;
+public class ServersideSender extends Thread {
+	
 	private Socket client;
-	private boolean keepRunning;
 	private Server messageServer;
+	private boolean keepRunning;
+	private MessageCenter messageCenter;
+
+	private LinkedList<Message> messages;
 	private Map<String, User> clients;
 
-	public ClientSender(Socket client, MessageCenter messageCenter, Server messageServer) {
+	public ServersideSender(Socket client, MessageCenter messageCenter, Server messageServer) {
 		this.client = client;
 		this.messageCenter = messageCenter;
 		this.messageServer = messageServer;
@@ -36,10 +38,14 @@ public class ClientSender extends Thread {
 			try {
 				Message message = getNextMessageFromQueue();
 				if (message == null) {
+					// Server sent empty message to stop the run method.
 					keepRunning = false;
 				} else {
 					if (message.getIsSystemMessage()) {
-						messageServer.removeUser(message.getRecipient(), client);
+						if (message.getSystemCode() == SystemCode.LOGOUT) {
+							// User asked to log out. Remove it from collection with connected users.
+							messageServer.removeUser(message.getRecipient(), client);
+						}
 
 						keepRunning = false;
 						sendSystemMessage(message.getSystemCode());
@@ -78,11 +84,11 @@ public class ClientSender extends Thread {
 		Message systemMessage;
 		if (isClientListenerClosed) {
 			// Generating systems message to close the client sender
-			systemMessage = new Message(SystemCode.LOGOUT);
+			systemMessage = new Message(SystemCode.LOGOUT, name);
 		} else {
 			// Generating system message to close the client sender and the
 			// client listener
-			systemMessage = new Message(SystemCode.SHUTDOWN);
+			systemMessage = new Message(SystemCode.SHUTDOWN, name);
 		}
 
 		addMessage(systemMessage);
@@ -121,7 +127,7 @@ public class ClientSender extends Thread {
 		String messageText = message.getMessageText();
 		String recipient = message.getRecipient();
 
-		if (recipient.equalsIgnoreCase("all")) {
+		if (recipient.equalsIgnoreCase("/all")) {
 			sendMessageToAllUsers(sender, messageText);
 		} else {
 			boolean isUserConnected = messageServer.isUserConnected(recipient);
@@ -132,6 +138,8 @@ public class ClientSender extends Thread {
 				sendMessagetoOneUser(errorMessage);
 			}
 		}
+		
+		sendMessagetoOneUser("Enter your message: ");
 	}
 
 	private void sendSystemMessage(int systemCode) {
@@ -191,6 +199,11 @@ public class ClientSender extends Thread {
 
 			out.writeUTF(messageText);
 			out.flush();
+
+			if (!sender.equals(recipient)) {
+				out.writeUTF("Enter your message: ");
+				out.flush();
+			}
 		} catch (IOException ioException) {
 			ioException.printStackTrace();
 		}
@@ -208,15 +221,16 @@ public class ClientSender extends Thread {
 		messageText = sender + ": " + messageText;
 
 		for (String client : clients.keySet()) {
-			// Message is sent to all user except the sender.
-			if (client == sender) {
+			if (client.equals(sender)) {
+				// Skip sending the message to the sender.
 				continue;
 			}
-
+			
 			User user = clients.get(client);
 
 			try {
 				DataOutputStream out = user.getOutputStream();
+
 				out.writeUTF(messageText);
 				out.flush();
 			} catch (IOException ioException) {
