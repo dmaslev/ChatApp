@@ -13,16 +13,14 @@ public class ServersideSender extends Thread {
 	private Socket client;
 	private Server messageServer;
 	private boolean keepRunning;
-	private MessageCenter messageCenter;
 
 	private LinkedList<Message> messages;
 	private Map<String, User> clients;
 
 	public ServersideSender(Socket client, MessageCenter messageCenter, Server messageServer) {
 		this.client = client;
-		this.messageCenter = messageCenter;
 		this.messageServer = messageServer;
-		this.clients =  messageCenter.getClients();
+		this.clients =  messageServer.getClients();
 	}
 
 	/**
@@ -44,7 +42,7 @@ public class ServersideSender extends Thread {
 					if (message.getIsSystemMessage()) {
 						if (message.getSystemCode() == SystemCode.LOGOUT) {
 							// User asked to log out. Remove it from collection with connected users.
-							messageServer.removeUser(message.getRecipient(), client);
+							messageServer.removeUser(message.getRecipient());
 						}
 
 						keepRunning = false;
@@ -183,7 +181,7 @@ public class ServersideSender extends Thread {
 	 *            The author of the message.
 	 */
 	private void sendMessagetoOneUser(String recipient, String messageText, String sender) {
-		Map<String, User> clients = messageCenter.getClients();
+		Map<String, User> clients = messageServer.getClients();
 		User user = clients.get(recipient);
 
 		// The user is not logged in.

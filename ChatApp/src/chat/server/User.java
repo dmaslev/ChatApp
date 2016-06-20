@@ -14,26 +14,20 @@ public class User {
 	
 	private Socket socket;
 	private DataOutputStream writer;
-	private ServersideSender messageSender;
 	
 	private Date connectedDate;
 	private String username;
 	private String adress;
 	
-	public User(Socket socket, String username, ServersideSender messageSender) {
+	public User(Socket socket, String username) {
 		this.socket = socket;
 		this.adress = socket.getLocalAddress().toString();
 		this.username = username;
 		this.connectedDate = new Date();
-		this.messageSender = messageSender;
 	}
 
 	public Socket getSocket() {
 		return this.socket;
-	}
-
-	public ServersideSender getClientSender() {
-		return this.messageSender;
 	}
 
 	public DataOutputStream getOutputStream() throws IOException {

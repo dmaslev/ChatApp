@@ -38,9 +38,11 @@ public class ClientMessageListener implements Runnable {
 					// User asked to logout.
 					System.out.println("Successfully logged out.");
 					isRunning = false;
+					listener.close();
+					client.close();
 				} else if (message.equalsIgnoreCase("shutdown")) {
 					// Server was shutdown or removed the user.
-					System.out.print("\nYou have been disconnected from server. ");
+					System.out.print("You have been disconnected from server. ");
 					
 					// Sending a system message to stop message sender.
 					messageSender.sendMessage(SystemCode.SHUTDOWN);
@@ -52,7 +54,7 @@ public class ClientMessageListener implements Runnable {
 			}
 		} catch (IOException ioException) {
 			// Unexpected connection lost.
-			System.out.print("\nLost connection with server. ");
+			System.out.print("Lost connection with server. ");
 			isRunning = false;
 			messageSender.shutdown();
 		} finally {
@@ -82,13 +84,13 @@ public class ClientMessageListener implements Runnable {
 		if (isRunning) {
 			try {
 				Integer result = listener.readInt();
-				convertResultCodeToMessage(result);
+				displayConvertResultCodeToMessage(result);
 
 				// Looping until a message for successful login is received.
 				while (result != SystemCode.SUCCESSFUL_LOGIN) {
 					messageSender.initializeUsername();
 					result = listener.readInt();
-					convertResultCodeToMessage(result);
+					displayConvertResultCodeToMessage(result);
 				}
 			} catch (IOException ioException) {
 				ioException.printStackTrace();
@@ -106,7 +108,7 @@ public class ClientMessageListener implements Runnable {
 	 * @param result
 	 *            Result code sent from server.
 	 */
-	private void convertResultCodeToMessage(Integer result) {
+	private void displayConvertResultCodeToMessage(Integer result) {
 		String message = new String();
 		switch (result) {
 		case 0:

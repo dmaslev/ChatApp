@@ -3,7 +3,7 @@ package chat.server;
 import java.util.Scanner;
 
 public class ServerInputManager extends Thread {
-	
+
 	private Server server;
 	private boolean isServerInputManagerOn;
 
@@ -16,25 +16,27 @@ public class ServerInputManager extends Thread {
 	 */
 	public void run() {
 		isServerInputManagerOn = true;
-		
+
 		Scanner reader = new Scanner(System.in);
-		while (isServerInputManagerOn) {
-			String line = reader.nextLine();
-			if (line.equalsIgnoreCase("/help")) {
-				printHelpMenu();
-			} else if (line.equalsIgnoreCase("/disconnect")) {
-				server.stopServer();
-			} else if (line.startsWith("/remove: ")) {
-				String name = line.substring(8).trim();
-				server.disconnectUser(name);
-			} else if (line.equalsIgnoreCase("/listall")) {
-				server.listConnectedUsers();
-			} else {
-				System.out.println("Invalid command.");
+		try {
+			while (isServerInputManagerOn) {
+				String line = reader.nextLine();
+				if (line.equalsIgnoreCase("/help")) {
+					printHelpMenu();
+				} else if (line.equalsIgnoreCase("/disconnect")) {
+					server.stopServer();
+				} else if (line.startsWith("/remove: ")) {
+					String name = line.substring(8).trim();
+					server.disconnectUser(name);
+				} else if (line.equalsIgnoreCase("/listall")) {
+					server.listConnectedUsers();
+				} else {
+					System.out.println("Invalid command.");
+				}
 			}
+		} finally {
+			reader.close();
 		}
-		
-		reader.close();
 	}
 
 	/**
@@ -43,7 +45,7 @@ public class ServerInputManager extends Thread {
 	protected void disconnect() {
 		isServerInputManagerOn = false;
 	}
-	
+
 	/**
 	 * Prints information about all supported commands.
 	 */

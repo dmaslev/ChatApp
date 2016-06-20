@@ -19,18 +19,18 @@ public class Server {
 	private final int DEFAULT_PORT = 2222;
 	private ServerSocket serverSocket;
 	private boolean keepRunning;
-	
+
 	// Collection for all logged in users.
 	private Map<String, User> clients;
-	
+
 	// Collection for connected users, before they log in.
 	private HashSet<Socket> connectedClients;
-	
+
 	private MessageCenter messageCenter;
 	private ServerInputManager serverInput;
-	
+
 	public Server() {
-		
+
 	}
 
 	/**
@@ -44,13 +44,13 @@ public class Server {
 		keepRunning = true;
 		try {
 			initializeServer(args);
-			
+
 			if (keepRunning) {
 				messageCenter = new MessageCenter(this);
 				messageCenter.start();
 				serverInput = new ServerInputManager(this);
 				serverInput.start();
-				
+
 				waitForConnections();
 			}
 		} catch (BindException bindException) {
@@ -105,16 +105,20 @@ public class Server {
 	 * @param messageListener
 	 *            Message listener of the user.
 	 */
-	protected synchronized void addUser(String name, Socket client, ServersideSender messageSender,
-			ServersideListener messageListener) {
+	protected synchronized void addUser(String name, Socket client, ServersideListener messageListener) {
 		int resultCode = validateUsername(name);
-		sendMessageToClient(client, resultCode, name);
+		try {
+			sendMessageToClient(client, resultCode);
 
-		if (resultCode == SystemCode.SUCCESSFUL_LOGIN) {
-			User connectedUser = new User(client, name, messageSender);
-			messageListener.setUsername(name);
-			clients.put(name, connectedUser);
-			connectedClients.remove(client);
+			if (resultCode == SystemCode.SUCCESSFUL_LOGIN) {
+				User connectedUser = new User(client, name);
+				messageListener.setUsername(name);
+				clients.put(name, connectedUser);
+				connectedClients.remove(client);
+			}
+		} catch (IOException ioException) {
+			System.out.println("User has been disconnected. Unable to send the message.");
+			ioException.printStackTrace();
 		}
 	}
 
@@ -127,11 +131,7 @@ public class Server {
 	 *            Used if the user is connected, but not logged in with
 	 *            username. yet.
 	 */
-	protected synchronized void removeUser(String username, Socket client) {
-		if (username == null) {
-			username = client.getInetAddress().toString();
-		}
-
+	protected synchronized void removeUser(String username) {
 		System.out.println(username + " disconnected.");
 		this.clients.remove(username);
 	}
@@ -153,7 +153,8 @@ public class Server {
 		for (String username : clients.keySet()) {
 			User user = clients.get(username);
 			if (user != null) {
-				user.getClientSender().disconnect(false, username);
+				Message shutDownMessage = new Message(SystemCode.SHUTDOWN, username);
+				messageCenter.addMessageToQueue(shutDownMessage);
 			}
 		}
 
@@ -166,7 +167,7 @@ public class Server {
 		}
 
 		serverInput.disconnect();
-		messageCenter.disconnect();
+		messageCenter.shutdown();
 		try {
 			serverSocket.close();
 		} catch (IOException ioException) {
@@ -190,7 +191,8 @@ public class Server {
 		if (user == null) {
 			System.out.println(name + " is not connected.");
 		} else {
-			user.getClientSender().disconnect(false, name);
+			Message shutDownMessage = new Message(SystemCode.SHUTDOWN, name);
+			messageCenter.addMessageToQueue(shutDownMessage);
 		}
 	}
 
@@ -205,11 +207,8 @@ public class Server {
 	private int validateUsername(String name) {
 		int resultCode;
 		if (!Character.isAlphabetic(name.charAt(0))) {
-			System.out.println("Username must start with english letter.");
-			return 4;
-		}
-
-		if (this.clients.containsKey(name)) {
+			resultCode = 4;
+		} else if (this.clients.containsKey(name)) {
 			resultCode = 1;
 		} else if (name.length() < 3) {
 			resultCode = 2;
@@ -252,15 +251,11 @@ public class Server {
 		}
 	}
 
-	private synchronized void sendMessageToClient(Socket ct, int resultCode, String name) {
-		try {
-			DataOutputStream out = new DataOutputStream(ct.getOutputStream());
-			out.writeInt(resultCode);
-			out.flush();
-		} catch (IOException ioException) {
-			System.out.println("User has been disconnected. Unable to send the message.");
-			ioException.printStackTrace();
-		}
+	private synchronized void sendMessageToClient(Socket ct, int resultCode) throws IOException {
+		//FIXME Send with message sender.
+		DataOutputStream out = new DataOutputStream(ct.getOutputStream());
+		out.writeInt(resultCode);
+		out.flush();
 	}
 
 	private void initializeServer(String[] args) throws IOException, NumberFormatException, BindException {

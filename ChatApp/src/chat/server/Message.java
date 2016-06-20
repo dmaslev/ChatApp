@@ -1,5 +1,7 @@
 package chat.server;
 
+import java.net.Socket;
+
 public class Message {
 
 	private String text;
@@ -20,13 +22,13 @@ public class Message {
 		this.setSystemMessage();
 	}
 
-	public Message(int systemCode, String recipient) {
+	public Message(int systemCode, String sender) {
 		this.systemCode = systemCode;
-		this.recipient = recipient;
+		this.sender = sender;
 		this.isSystemMessage = true;
 	}
 
-	public Message(int systemCode) {
+	public Message(int systemCode, Socket client) {
 		this.systemCode = systemCode;
 		this.isSystemMessage = true;
 	}

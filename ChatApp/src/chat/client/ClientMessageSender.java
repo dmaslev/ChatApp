@@ -32,7 +32,7 @@ public class ClientMessageSender implements Runnable {
 				String message = inputReader.nextLine();
 				if (message.equalsIgnoreCase(UserCommands.LOGOUT)) {
 					// User asked to logout.
-					stopClient();
+					logout();
 					isRunning = false;
 				} else if (message.equalsIgnoreCase(UserCommands.EXIT)) {
 					// Exit command is entered. Stop the run method.
@@ -134,7 +134,7 @@ public class ClientMessageSender implements Runnable {
 	 * Stops reading input and sends a system message to stop the client input
 	 * listener.
 	 */
-	private void stopClient() {
+	private void logout() {
 		try {
 			output.writeInt(SystemCode.LOGOUT);
 			output.writeUTF(username);

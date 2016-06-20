@@ -22,13 +22,7 @@ public class Client {
 	 *             If error occurs when reading from data input.
 	 */
 	private void initializeClient(String[] args) throws IOException {
-		try {
-			setSocketParameters(args);
-		} catch (IOException ioException) {
-			// Reading input problem.
-			ioException.printStackTrace();
-			throw new IOException(ioException);
-		}
+		setSocketParameters(args);
 
 		try {
 			startClient();
@@ -61,8 +55,8 @@ public class Client {
 		}
 	}
 
-	private void setSocketParameters(String[] args) throws IOException {
-		// Args can empty but not null.
+	private void setSocketParameters(String[] args) {
+		// Args can be empty, but not null.
 		if (args.length > 0) {
 			serverAdress = args[0];
 			if (args.length > 1) {
