@@ -14,21 +14,25 @@ public class Message {
 	
 	// Variable used to define different system messages.
 	private int systemCode;
+	private Socket socket;
 
 	public Message(String text, String recipient, String sender) {
 		this.text = text;
 		this.recipient = recipient;
 		this.sender = sender;
-		this.setSystemMessage();
+		this.isSystemMessage = false;
 	}
 
-	public Message(int systemCode, String sender) {
+	public Message(String text, String recipient, int systemCode) {
+		this(text, recipient, "admin");
 		this.systemCode = systemCode;
-		this.sender = sender;
 		this.isSystemMessage = true;
+
 	}
 
-	public Message(int systemCode, Socket client) {
+	public Message(String text, Socket socket, int systemCode) {
+		this.text = text;
+		this.socket = socket;
 		this.systemCode = systemCode;
 		this.isSystemMessage = true;
 	}
@@ -48,16 +52,12 @@ public class Message {
 	public String getSender() {
 		return this.sender;
 	}
+	
+	public Socket getSocket() {
+		return this.socket;
+	}
 
 	public int getSystemCode() {
 		return this.systemCode;
-	}
-
-	private void setSystemMessage() {
-		if (sender.equalsIgnoreCase("admin") || sender.equalsIgnoreCase("administrator")) {
-			this.isSystemMessage = true;
-		} else {
-			this.isSystemMessage = false;
-		}
 	}
 }

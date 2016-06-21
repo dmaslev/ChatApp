@@ -60,14 +60,12 @@ public class MessageCenter extends Thread {
 	 * Adds a system message in the queue to terminate the client sender. If the
 	 * client listener is not terminated the system message terminates it.
 	 * 
-	 * @param isClientListenerClosed
-	 *            Indicates if the client listener has been already closed.
-	 * @param name
-	 *            The username of the client.
+	 * @param isClientListenerClosed Indicates if the client listener has been already closed.
+	 * @param name The username of the client.
 	 */
 	protected void disconnectUser(String name) {
 		// Generating systems message to close the client sender
-		Message systemMessage = new Message(SystemCode.LOGOUT, name);
+		Message systemMessage = new Message("logout", name, SystemCode.LOGOUT);
 
 		addMessageToQueue(systemMessage);
 	}
@@ -88,10 +86,6 @@ public class MessageCenter extends Thread {
 		Message message = messagesQueue.poll();
 		return message;
 	}
-
-	// private synchronized void sendMessage(Message message) {
-	// clients.get(message.getSender()).getClientSender().addMessage(message);
-	// }
 
 	private void initializeExecutor() {
 		int numberOfThread = 10;

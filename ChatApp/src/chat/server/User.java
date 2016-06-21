@@ -30,11 +30,7 @@ public class User {
 		return this.socket;
 	}
 
-	public DataOutputStream getOutputStream() throws IOException {
-		if (this.writer == null) {
-			this.writer = new DataOutputStream(this.socket.getOutputStream());
-		}
-		
+	public DataOutputStream getOutputStream() {
 		return this.writer;
 	}
 
@@ -49,5 +45,9 @@ public class User {
 	public String toString() {
 		String info = "User: " + username + "(" + adress + "), connected: " + connectedDate;
 		return info;
+	}
+
+	public void setOutputStream()  throws IOException {
+		this.writer = new DataOutputStream(this.socket.getOutputStream());
 	}
 }

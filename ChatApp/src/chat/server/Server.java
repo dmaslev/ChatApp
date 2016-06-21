@@ -1,6 +1,5 @@
 package chat.server;
 
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.BindException;
 import java.net.InetAddress;
@@ -31,34 +30,6 @@ public class Server {
 
 	public Server() {
 
-	}
-
-	/**
-	 * Initializes the server, opens the server socket and waits for user
-	 * connections.
-	 * 
-	 * @param args
-	 *            Server port. If null, default value is used.
-	 */
-	private void startServer(String[] args) {
-		keepRunning = true;
-		try {
-			initializeServer(args);
-
-			if (keepRunning) {
-				messageCenter = new MessageCenter(this);
-				messageCenter.start();
-				serverInput = new ServerInputManager(this);
-				serverInput.start();
-
-				waitForConnections();
-			}
-		} catch (BindException bindException) {
-			bindException.printStackTrace();
-		} catch (IOException e) {
-			keepRunning = false;
-			e.printStackTrace();
-		}
 	}
 
 	/**
@@ -112,6 +83,8 @@ public class Server {
 
 			if (resultCode == SystemCode.SUCCESSFUL_LOGIN) {
 				User connectedUser = new User(client, name);
+				connectedUser.setOutputStream();
+				
 				messageListener.setUsername(name);
 				clients.put(name, connectedUser);
 				connectedClients.remove(client);
@@ -153,7 +126,7 @@ public class Server {
 		for (String username : clients.keySet()) {
 			User user = clients.get(username);
 			if (user != null) {
-				Message shutDownMessage = new Message(SystemCode.SHUTDOWN, username);
+				Message shutDownMessage = new Message("disconnect", username, SystemCode.DISCONNECT);
 				messageCenter.addMessageToQueue(shutDownMessage);
 			}
 		}
@@ -183,19 +156,45 @@ public class Server {
 	 * by the user. Prints an error message if there is no user with such
 	 * username.
 	 * 
-	 * @param name
-	 *            The name of the user to be disconnected.
+	 * @param name The name of the user to be disconnected.
 	 */
 	protected void disconnectUser(String name) {
 		User user = clients.get(name);
 		if (user == null) {
 			System.out.println(name + " is not connected.");
 		} else {
-			Message shutDownMessage = new Message(SystemCode.SHUTDOWN, name);
+			Message shutDownMessage = new Message("disconnect", name, SystemCode.DISCONNECT);
 			messageCenter.addMessageToQueue(shutDownMessage);
 		}
 	}
 
+	/**
+	 * Initializes the server, opens the server socket and waits for user
+	 * connections.
+	 * 
+	 * @param args Server port. If null, default value is used.
+	 */
+	private void startServer(String[] args) {
+		keepRunning = true;
+		try {
+			initializeServer(args);
+
+			if (keepRunning) {
+				messageCenter = new MessageCenter(this);
+				messageCenter.start();
+				serverInput = new ServerInputManager(this);
+				serverInput.start();
+
+				waitForConnections();
+			}
+		} catch (BindException bindException) {
+			bindException.printStackTrace();
+		} catch (IOException e) {
+			keepRunning = false;
+			e.printStackTrace();
+		}
+	}
+	
 	/**
 	 * Accepts a username, checks if it is a valid username and returns a error
 	 * code. Valid username is at least 3 characters long, starts with English
@@ -251,11 +250,10 @@ public class Server {
 		}
 	}
 
-	private synchronized void sendMessageToClient(Socket ct, int resultCode) throws IOException {
-		//FIXME Send with message sender.
-		DataOutputStream out = new DataOutputStream(ct.getOutputStream());
-		out.writeInt(resultCode);
-		out.flush();
+	private synchronized void sendMessageToClient(Socket ct, int resultCode) {
+		String text = "" + resultCode;
+		Message message = new Message(text, ct, SystemCode.REGISTER);
+		messageCenter.addMessageToQueue(message);
 	}
 
 	private void initializeServer(String[] args) throws IOException, NumberFormatException, BindException {

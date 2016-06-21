@@ -18,8 +18,7 @@ public class Client {
 	/**
 	 * Sets connection to the server. Opens data input and output streams.
 	 * 
-	 * @throws IOException
-	 *             If error occurs when reading from data input.
+	 * @throws IOException If error occurs when reading from data input stream.
 	 */
 	private void initializeClient(String[] args) throws IOException {
 		setSocketParameters(args);

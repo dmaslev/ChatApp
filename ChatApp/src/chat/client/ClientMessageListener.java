@@ -40,12 +40,12 @@ public class ClientMessageListener implements Runnable {
 					isRunning = false;
 					listener.close();
 					client.close();
-				} else if (message.equalsIgnoreCase("shutdown")) {
+				} else if (message.equalsIgnoreCase("disconnect")) {
 					// Server was shutdown or removed the user.
 					System.out.print("You have been disconnected from server. ");
 					
 					// Sending a system message to stop message sender.
-					messageSender.sendMessage(SystemCode.SHUTDOWN);
+					messageSender.sendMessage(SystemCode.DISCONNECT);
 					isRunning = false;
 					messageSender.shutdown();
 				} else {
@@ -105,8 +105,7 @@ public class ClientMessageListener implements Runnable {
 	 * Accepts system code sent from server and prints a message depending on
 	 * code value.
 	 * 
-	 * @param result
-	 *            Result code sent from server.
+	 * @param result Result code sent from server.
 	 */
 	private void displayConvertResultCodeToMessage(Integer result) {
 		String message = new String();
@@ -137,8 +136,7 @@ public class ClientMessageListener implements Runnable {
 	/**
 	 * Accepts a string and displays it to the client.
 	 * 
-	 * @param message
-	 *            A message to be displayed
+	 * @param message A message to be displayed
 	 */
 	private void display(String message) {
 		System.out.println(message);

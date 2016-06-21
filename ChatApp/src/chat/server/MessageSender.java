@@ -20,48 +20,35 @@ public class MessageSender implements Runnable {
 	@Override
 	public void run() {
 		if (message.getIsSystemMessage()) {
+			if (message.getSystemCode() == SystemCode.REGISTER) {
+				sendRegisterMessage(message);
+				return;
+			}
+			
 			sendSystemMessage(message.getSystemCode(), message);
-			server.removeUser(message.getSender());
-
+			
+			if (message.getSystemCode() == SystemCode.LOGOUT) {
+				server.removeUser(message.getRecipient());
+			}
 		} else {
 			sendMessage(message);
 		}
 	}
-	
 
-	private void sendSystemMessage(int systemCode, Message message) {
-		String text = new String();
-		if (systemCode == SystemCode.SHUTDOWN) {
-			text = "shutdown";
-		} else if(systemCode == SystemCode.LOGOUT) {
-			text = "logout";
-		}
-		
-		sendMessagetoOneUser(text, message.getSender());
-	}
-	
-
-
-	/**
-	 * A method used to inform the client when he sends message to user
-	 * currently not logged in.
-	 * 
-	 * @param sender
-	 *            The author of the message.
-	 * @param errorMessage
-	 *            Information message for the client.
-	 */
-	private void sendMessagetoOneUser(String errorMessage, String sender) {
+	private void sendRegisterMessage(Message message) {
+		Socket ct = message.getSocket();
+		int resultCode = Integer.parseInt(message.getMessageText());
+		DataOutputStream out;
 		try {
-			Socket client = server.getClients().get(sender).getSocket();
-			DataOutputStream out = new DataOutputStream(client.getOutputStream());
-			out.writeUTF(errorMessage);
+			out = new DataOutputStream(ct.getOutputStream());
+			out.writeInt(resultCode);
 			out.flush();
 		} catch (IOException ioException) {
 			ioException.printStackTrace();
 		}
+		
 	}
-	
+
 	/**
 	 * Sends a message to the client.
 	 * 
@@ -81,13 +68,36 @@ public class MessageSender implements Runnable {
 				sendMessagetoOneUser(recipient, messageText, sender);
 			} else {
 				String errorMessage = recipient + " is not connected.";
-				sendMessagetoOneUser(errorMessage, sender);
+				sendSystemMessageToOneUser(errorMessage, sender);
 			}
 		}
 		
-		sendMessagetoOneUser("Enter your message: ", sender);
+		sendSystemMessageToOneUser("Enter your message: ", sender);
+	}
+	
+	private void sendSystemMessage(int systemCode, Message message) {
+		String text = message.getMessageText();
+		sendSystemMessageToOneUser(text, message.getRecipient());
 	}
 
+	/**
+	 * A method used to inform the client when he sends message to user
+	 * currently not logged in.
+	 * 
+	 * @param recipient
+	 * @param errorMessage
+	 *            Information message for the client.
+	 */
+	private void sendSystemMessageToOneUser(String errorMessage, String recipient) {
+		try {
+			Socket client = server.getClients().get(recipient).getSocket();
+			DataOutputStream out = new DataOutputStream(client.getOutputStream());
+			out.writeUTF(errorMessage);
+			out.flush();
+		} catch (IOException ioException) {
+			ioException.printStackTrace();
+		}
+	}
 
 	/**
 	 * Sends message to one user.
@@ -106,7 +116,7 @@ public class MessageSender implements Runnable {
 		// The user is not logged in.
 		if (user == null) {
 			String errorMessage = recipient + " is not connected.";
-			sendMessagetoOneUser(errorMessage, recipient);
+			sendSystemMessageToOneUser(errorMessage, recipient);
 			return;
 		}
 
@@ -151,6 +161,8 @@ public class MessageSender implements Runnable {
 				DataOutputStream out = user.getOutputStream();
 
 				out.writeUTF(messageText);
+				out.writeUTF("Enter your message: ");
+
 				out.flush();
 			} catch (IOException ioException) {
 				System.out.println("Unable to send the message to " + client);
