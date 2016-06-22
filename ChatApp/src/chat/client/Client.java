@@ -21,15 +21,18 @@ public class Client {
 	 * @throws IOException If error occurs when reading from data input stream.
 	 */
 	private void initializeClient(String[] args) throws IOException {
-		setSocketParameters(args);
-
 		try {
-			startClient();
-		} catch (InterruptedException interruptedException) {
-			// Main thread was interrupted before client message listener was
-			// started.
-			interruptedException.printStackTrace();
-		}
+			setSocketParameters(args);
+			try {
+				startClient();
+			} catch (InterruptedException interruptedException) {
+				// Main thread was interrupted before client message listener was
+				// started.
+				interruptedException.printStackTrace();
+			}
+		} catch (IllegalArgumentException illegalArgumentException) {
+			illegalArgumentException.printStackTrace();
+		} 
 	}
 
 	private void startClient() throws IOException, InterruptedException {
@@ -54,23 +57,32 @@ public class Client {
 		}
 	}
 
-	private void setSocketParameters(String[] args) {
+	private void setSocketParameters(String[] args) throws IllegalArgumentException {
 		// Args can be empty, but not null.
 		if (args.length > 0) {
 			serverAdress = args[0];
 			if (args.length > 1) {
 				try {
 					port = Integer.parseInt(args[1]);
+					if (port < 1 || port > 65535) {
+						// Invalid port number
+						throw new IllegalArgumentException("Invalud port number");
+					}
 				} catch (NumberFormatException numberFormatException) {
-					System.out.println(args[1] + " is not valid port number. Default port number will be used.");
-					port = DEFAULT_PORT_NUMBER;
-					numberFormatException.printStackTrace();
+					System.out.println(args[1] + " is not valid port number. ");
+					throw new IllegalArgumentException(numberFormatException);
 				}
+			} else {
+				port = DEFAULT_PORT_NUMBER;
 			}
 		} else {
 			System.out.print("Enter host adress/ip adress of server/: ");
 			inputReader = new Scanner(System.in);
 			serverAdress = inputReader.nextLine();
+			if (serverAdress.length() == 0) {
+				throw new IllegalArgumentException("Server adress can not be null.");
+			}
+
 			port = DEFAULT_PORT_NUMBER;
 		}
 	}

@@ -50,10 +50,10 @@ public class MessageSender implements Runnable {
 	}
 
 	/**
-	 * Sends a message to the client.
+	 * Sends a message to the client. Depending on the message type calls 
+	 * proper method to send the message.
 	 * 
-	 * @param message
-	 *            A message to be sent.
+	 * @param message A message to be sent.
 	 */
 	private void sendMessage(Message message) {
 		String sender = message.getSender();
@@ -81,18 +81,16 @@ public class MessageSender implements Runnable {
 	}
 
 	/**
-	 * A method used to inform the client when he sends message to user
-	 * currently not logged in.
+	 * A method used to send system message to only client.
 	 * 
-	 * @param recipient
-	 * @param errorMessage
-	 *            Information message for the client.
+	 * @param recipient The username of recipient.
+	 * @param textMessage Information message for the client.
 	 */
-	private void sendSystemMessageToOneUser(String errorMessage, String recipient) {
+	private void sendSystemMessageToOneUser(String textMessage, String recipient) {
 		try {
 			Socket client = server.getClients().get(recipient).getSocket();
 			DataOutputStream out = new DataOutputStream(client.getOutputStream());
-			out.writeUTF(errorMessage);
+			out.writeUTF(textMessage);
 			out.flush();
 		} catch (IOException ioException) {
 			ioException.printStackTrace();
@@ -102,12 +100,9 @@ public class MessageSender implements Runnable {
 	/**
 	 * Sends message to one user.
 	 * 
-	 * @param recipient
-	 *            The recipient.
-	 * @param messageText
-	 *            The text of the message.
-	 * @param sender
-	 *            The author of the message.
+	 * @param recipient The username of recipient.
+	 * @param messageText The text of the message.
+	 * @param sender Username of sender of the message.
 	 */
 	private void sendMessagetoOneUser(String recipient, String messageText, String sender) {
 		Map<String, User> clients = server.getClients();
@@ -139,12 +134,11 @@ public class MessageSender implements Runnable {
 	}
 
 	/**
-	 * Sends message to all connected users.
+	 * Sends message to all connected users. The message is not being sent to 
+	 * the author.
 	 * 
-	 * @param sender
-	 *            The author of the message.
-	 * @param messageText
-	 *            The text of the message.
+	 * @param sender The author of the message.
+	 * @param messageText The text of the message.
 	 */
 	private void sendMessageToAllUsers(String sender, String messageText) {
 		messageText = sender + ": " + messageText;
@@ -154,7 +148,7 @@ public class MessageSender implements Runnable {
 				// Skip sending the message to the sender.
 				continue;
 			}
-			
+
 			User user = server.getClients().get(client);
 
 			try {

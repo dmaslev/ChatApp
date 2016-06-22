@@ -39,6 +39,7 @@ public class ServersideListener extends Thread {
 					keepRunning = false;
 					messageCenter.disconnectUser(usernameAttched);
 				} else if (messageType == SystemCode.REGISTER) {
+					// Add user in the collection with all connected users
 					messageServer.addUser(textReceived, client, this);
 				} else if (messageType == SystemCode.DISCONNECT) {
 					// Client sender already closed. The client asked to

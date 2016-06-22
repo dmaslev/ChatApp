@@ -47,6 +47,10 @@ public class User {
 		return info;
 	}
 
+	/**
+	 * Opens the output stream.
+	 * @throws IOException If the socket is closed.
+	 */
 	public void setOutputStream()  throws IOException {
 		this.writer = new DataOutputStream(this.socket.getOutputStream());
 	}

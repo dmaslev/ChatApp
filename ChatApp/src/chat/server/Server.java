@@ -14,7 +14,7 @@ import chat.constants.SystemCode;
 
 public class Server {
 
-	// Default port number is used if user does not provide valid port number.
+	// Default port number is used if user does not provide a port number.
 	private final int DEFAULT_PORT = 2222;
 	private ServerSocket serverSocket;
 	private boolean keepRunning;
@@ -28,16 +28,13 @@ public class Server {
 	private MessageCenter messageCenter;
 	private ServerInputManager serverInput;
 
-	public Server() {
-
-	}
-
 	/**
 	 * Checks in collection with all connected users if there is a user with
 	 * provided username.
 	 * 
 	 * @param username
-	 * @return Returns true if the user is connected and false otherwise.
+	 * @return Returns true if the user is found in the collection with all 
+	 * connected users and false otherwise.
 	 */
 	protected synchronized boolean isUserConnected(String username) {
 		User client = clients.get(username);
@@ -189,9 +186,9 @@ public class Server {
 			}
 		} catch (BindException bindException) {
 			bindException.printStackTrace();
-		} catch (IOException e) {
+		} catch (IOException | IllegalArgumentException exception) {
 			keepRunning = false;
-			e.printStackTrace();
+			exception.printStackTrace();
 		}
 	}
 	
@@ -261,14 +258,19 @@ public class Server {
 		try {
 			if (args.length == 1) {
 				port = Integer.parseInt(args[0]);
+				if (port < 1 || port > 65535) {
+					// Invalid port number
+					throw new IllegalArgumentException("Invalud port number");
+				}
 			} else if (args.length > 1) {
 				System.out.println("Unknow number of arguments. Start the program with only one "
 						+ "argument for port number or without any arguments to use the default one.");
 				keepRunning = false;
 			}
 		} catch (NumberFormatException numberFormatException) {
-			System.out.println(args[0] + " is not a valid port. Default value will be used.");
+			System.out.println(args[0] + " is not a valid port.");
 			numberFormatException.printStackTrace();
+			throw new IllegalArgumentException(numberFormatException);
 		}
 
 		try {
