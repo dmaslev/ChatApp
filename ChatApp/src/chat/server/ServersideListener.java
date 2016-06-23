@@ -14,7 +14,7 @@ public class ServersideListener extends Thread {
 
 	private MessageCenter messageCenter;
 	private Server messageServer;
-	private String usernameAttched;
+	private String usernameAttached;
 	
 	public ServersideListener(Socket client, MessageCenter messageCenter, Server messageServer) {
 		this.client = client;
@@ -37,24 +37,25 @@ public class ServersideListener extends Thread {
 				String textReceived = input.readUTF();
 				if (messageType == SystemCode.LOGOUT) {
 					keepRunning = false;
-					messageCenter.disconnectUser(usernameAttched);
+					messageCenter.disconnectUser(usernameAttached);
 				} else if (messageType == SystemCode.REGISTER) {
 					// Add user in the collection with all connected users
 					messageServer.addUser(textReceived, client, this);
 				} else if (messageType == SystemCode.DISCONNECT) {
 					// Client sender already closed. The client asked to
 					// close the clientListener
-					messageServer.removeUser(usernameAttched);
+					messageServer.removeUser(usernameAttached);
 					keepRunning = false;
 				} else if (messageType == SystemCode.REGULAR_MESSAGE) {
 					String recipient = input.readUTF();
-					Message message = new Message(textReceived, recipient, usernameAttched);
+					Message message = new Message(textReceived, recipient, usernameAttached);
 					messageCenter.addMessageToQueue(message);
 				}
 			}
 		} catch (IOException ioException) {
 			// Connection lost
-			messageServer.removeUser(usernameAttched);
+			usernameAttached = client.getInetAddress().toString();
+			messageServer.removeUser(usernameAttached);
 			keepRunning = false;
 		} 
 	}
@@ -64,6 +65,6 @@ public class ServersideListener extends Thread {
 	}
 
 	protected void setUsername(String name) {
-		this.usernameAttched = name;
+		this.usernameAttached = name;
 	}
 }

@@ -64,14 +64,10 @@ public class Server {
 	 * Validates the username. If the validation is passed creates a new User
 	 * and adds it in the collection of all connected user.
 	 * 
-	 * @param name
-	 *            Username of the user.
-	 * @param client
-	 *            Socket of the user.
-	 * @param messageSender
-	 *            Message sender of the user.
-	 * @param messageListener
-	 *            Message listener of the user.
+	 * @param name Username of the user.
+	 * @param client Socket of the user.
+	 * @param messageSender Message sender of the user.
+	 * @param messageListener Message listener of the user.
 	 */
 	protected synchronized void addUser(String name, Socket client, ServersideListener messageListener) {
 		int resultCode = validateUsername(name);
@@ -95,11 +91,9 @@ public class Server {
 	/**
 	 * Removes a use from the collection with all connected users.
 	 * 
-	 * @param username
-	 *            Name of the user to be removed.
-	 * @param client
-	 *            Used if the user is connected, but not logged in with
-	 *            username. yet.
+	 * @param username Name of the user to be removed.
+	 * @param client Used if the user is connected, but not logged in with
+	 *            username yet.
 	 */
 	protected synchronized void removeUser(String username) {
 		System.out.println(username + " disconnected.");

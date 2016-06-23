@@ -24,12 +24,13 @@ public class MessageCenter extends Thread {
 		this.isServerOn = true;
 		this.messagesQueue = new LinkedList<Message>();
 
-		while (isServerOn) {
+		while (isServerOn || messagesQueue.size() > 0) {
 			Message message = getNextMessageFromQueue();
 
 			if (message == null) {
 				// Server is shut down. A system message is sent to shut
-				// down the message center.
+				// down the message center. Loop while there are messages
+				// in the queue.
 				this.isServerOn = false;
 			} else  {
 				MessageSender messageSender = new MessageSender(message, server);
@@ -37,21 +38,21 @@ public class MessageCenter extends Thread {
 			} 
 		}
 		
+		// Wait to send all message then shutdown the thread pool.
 		executorService.shutdown();
 	}
 
 	/**
 	 * Adds a message to the queue.
 	 * 
-	 * @param message
-	 *            The message to be added.
+	 * @param message The message to be added.
 	 */
 	public synchronized void addMessageToQueue(Message message) {
 		messagesQueue.add(message);
 		notify();
 	}
 
-	public void shutdown() {
+	protected void shutdown() {
 		// Add null message to stop the run method in message center.
 		Message systemMessage = null;
 		addMessageToQueue(systemMessage);
