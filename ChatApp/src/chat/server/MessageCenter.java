@@ -36,6 +36,8 @@ public class MessageCenter extends Thread {
 				executorService.execute(messageSender);
 			} 
 		}
+		
+		executorService.shutdown();
 	}
 
 	/**
@@ -53,7 +55,6 @@ public class MessageCenter extends Thread {
 		// Add null message to stop the run method in message center.
 		Message systemMessage = null;
 		addMessageToQueue(systemMessage);
-		executorService.shutdown();
 	}
 
 	/**
