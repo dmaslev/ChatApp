@@ -17,7 +17,7 @@ public class Server {
 	// Default port number is used if user does not provide a port number.
 	private final int DEFAULT_PORT = 2222;
 	private ServerSocket serverSocket;
-	private boolean keepRunning;
+	private boolean isRunning;
 
 	// Collection for all logged in users.
 	private Map<String, User> clients;
@@ -113,7 +113,7 @@ public class Server {
 	 * connected users and closes the server socket.
 	 */
 	protected void stopServer() {
-		keepRunning = false;
+		isRunning = false;
 		for (String username : clients.keySet()) {
 			User user = clients.get(username);
 			if (user != null) {
@@ -166,11 +166,11 @@ public class Server {
 	 * @param args Server port. If null, default value is used.
 	 */
 	private void startServer(String[] args) {
-		keepRunning = true;
+		isRunning = true;
 		try {
 			initializeServer(args);
 
-			if (keepRunning) {
+			if (isRunning) {
 				messageCenter = new MessageCenter(this);
 				messageCenter.start();
 				serverInput = new ServerInputManager(this);
@@ -180,8 +180,11 @@ public class Server {
 			}
 		} catch (BindException bindException) {
 			bindException.printStackTrace();
-		} catch (IOException | IllegalArgumentException exception) {
-			keepRunning = false;
+		} catch (IOException ioException) {
+			isRunning = false;
+			ioException.printStackTrace();
+		} catch (IllegalArgumentException exception) {
+			isRunning = false;
 			exception.printStackTrace();
 		}
 	}
@@ -226,7 +229,7 @@ public class Server {
 	}
 
 	private void waitForConnections() {
-		while (keepRunning) {
+		while (isRunning) {
 			try {
 				Socket socket = serverSocket.accept();
 				connectedClients.add(socket);
@@ -236,7 +239,7 @@ public class Server {
 				client.start();
 			} catch (IOException ioException) {
 				// Server socket was closed while waiting for connections.
-				keepRunning = false;
+				isRunning = false;
 			}
 		}
 	}
@@ -259,7 +262,7 @@ public class Server {
 			} else if (args.length > 1) {
 				System.out.println("Unknow number of arguments. Start the program with only one "
 						+ "argument for port number or without any arguments to use the default one.");
-				keepRunning = false;
+				isRunning = false;
 			}
 		} catch (NumberFormatException numberFormatException) {
 			System.out.println(args[0] + " is not a valid port.");
@@ -271,11 +274,11 @@ public class Server {
 			serverSocket = new ServerSocket(port);
 		} catch (BindException bindException) {
 			System.out.println("Port " + port + " is already in use.");
-			keepRunning = false;
+			isRunning = false;
 			throw new IOException(bindException);
 		}
 
-		if (keepRunning) {
+		if (isRunning) {
 			// All logged in clients.
 			clients = new HashMap<>();
 

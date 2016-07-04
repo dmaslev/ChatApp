@@ -71,11 +71,9 @@ public class ClientMessageSender implements Runnable {
 	/**
 	 * Sends a message to server listeners.
 	 * 
-	 * @param message
-	 *            - Text message to be sent.
-	 * @param recipient
-	 *            - Username of the recipient in String format.
-	 * @throws IOException
+	 * @param message Text message to be sent.
+	 * @param recipient Username of the recipient in String format.
+	 * @throws IOException If connection error occurs during sending the message.
 	 */
 	protected void sendMessage(Integer systemCode, String message, String recipient) throws IOException {
 		output.writeInt(systemCode);
@@ -84,6 +82,11 @@ public class ClientMessageSender implements Runnable {
 		output.flush();
 	}
 
+	/**
+	 * 
+	 * @param systemCode
+	 * @throws IOException
+	 */
 	protected void sendMessage(Integer systemCode) throws IOException {
 		output.writeInt(systemCode);
 		output.writeUTF(username);
@@ -114,7 +117,7 @@ public class ClientMessageSender implements Runnable {
 				username = inputReader.nextLine();
 			}
 
-			sendMessage(SystemCode.REGISTER, username);
+			sendRegisterMessage(SystemCode.REGISTER, username);
 
 		} catch (IOException ioException) {
 			ioException.printStackTrace();
@@ -127,11 +130,15 @@ public class ClientMessageSender implements Runnable {
 		this.username = name;
 	}
 
+	/**
+	 * System message for shutting down the client was received. The message sender terminates.
+	 */
 	protected void shutdown() {
 		try {
 			expextedExitMessage = true;
 			isRunning = false;
 			System.out.println("Enter \"/exit\" to stop the program.");
+			//todo
 			output.close();
 			client.close();
 		} catch (IOException ioException) {
@@ -139,7 +146,13 @@ public class ClientMessageSender implements Runnable {
 		}
 	}
 
-	private void sendMessage(int messageCode, String username) throws IOException {
+	/**
+	 * Send a register message to server.
+	 * @param messageCode The system code of the message is used to define the type of the message.
+	 * @param username The username of the new client.
+	 * @throws IOException 
+	 */
+	private void sendRegisterMessage(int messageCode, String username) throws IOException {
 		output.writeInt(messageCode);
 		output.writeUTF(username);
 		output.flush();

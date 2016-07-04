@@ -26,6 +26,7 @@ public class ClientMessageListener implements Runnable {
 		try {
 			if (!initializeMessageListener()) {
 				// Error was occurred during initializing message listener.
+				isRunning = false;
 				return;
 			}
 
@@ -38,6 +39,7 @@ public class ClientMessageListener implements Runnable {
 					// User asked to logout.
 					System.out.println("Successfully logged out.");
 					isRunning = false;
+					//TODO
 					listener.close();
 					client.close();
 				} else if (message.equalsIgnoreCase("disconnect")) {
@@ -49,6 +51,7 @@ public class ClientMessageListener implements Runnable {
 					isRunning = false;
 					messageSender.shutdown();
 				} else {
+					//todo
 					display(message);
 				}
 			}
@@ -81,8 +84,8 @@ public class ClientMessageListener implements Runnable {
 			return false;
 		}
 
-		if (isRunning) {
 			try {
+				// TODO
 				Integer result = listener.readInt();
 				displayConvertResultCodeToMessage(result);
 
@@ -96,7 +99,6 @@ public class ClientMessageListener implements Runnable {
 				ioException.printStackTrace();
 				return false;
 			}
-		}
 
 		return true;
 	}
