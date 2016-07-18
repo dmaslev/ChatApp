@@ -8,7 +8,7 @@ import chat.constants.SystemCode;
 
 public class ClientMessageListener implements Runnable {
 
-	private Socket client;
+	private Socket socket;
 	private DataInputStream listener;
 	private ClientMessageSender messageSender;
 
@@ -16,7 +16,7 @@ public class ClientMessageListener implements Runnable {
 	private boolean isRunning;
 
 	public ClientMessageListener(Socket client, ClientMessageSender messageSender) {
-		this.client = client;
+		this.socket = client;
 		this.messageSender = messageSender;
 	}
 
@@ -24,8 +24,8 @@ public class ClientMessageListener implements Runnable {
 		this.isRunning = true;
 
 		try {
-			if (!initializeMessageListener()) {
-				// Error was occurred during initializing message listener.
+			if (!registerUser()) {
+				// Error was occurred during registration the user.
 				isRunning = false;
 				return;
 			}
@@ -39,33 +39,62 @@ public class ClientMessageListener implements Runnable {
 					// User asked to logout.
 					System.out.println("Successfully logged out.");
 					isRunning = false;
-					//TODO
-					listener.close();
-					client.close();
 				} else if (message.equalsIgnoreCase("disconnect")) {
-					// Server was shutdown or removed the user.
-					System.out.print("You have been disconnected from server. ");
-					
 					// Sending a system message to stop message sender.
 					messageSender.sendMessage(SystemCode.DISCONNECT);
+					
+					// Server was shutdown or removed the user.
+					System.out.print("You have been disconnected from server. ");
+					System.out.println("Enter \"/exit\" to stop the program.");
+					
 					isRunning = false;
-					messageSender.shutdown();
 				} else {
-					//todo
 					display(message);
 				}
 			}
 		} catch (IOException ioException) {
 			// Unexpected connection lost.
 			System.out.print("Lost connection with server. ");
+			ioException.printStackTrace();
 			isRunning = false;
-			messageSender.shutdown();
 		} finally {
-			try {
-				listener.close();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+			closeResources();
+		}
+	}
+
+	/**
+	 * Open data stream used by ClientMessageListener
+	 * 
+	 * @throws IOException
+	 *             If the data stream cannot be opened.
+	 */
+	public void init() throws IOException {
+		try {
+			listener = new DataInputStream(socket.getInputStream());
+		} catch (IOException ioException) {
+			// Unable to open input stream.
+			throw new IOException("Unable to open the input stream. ", ioException);
+		}
+	}
+	
+	private void closeResources() {
+		try {
+			listener.close();
+		} catch (IOException ioException) {
+			ioException.printStackTrace();
+		}
+		
+		try {
+			socket.close();
+		} catch (IOException ioException) {
+			ioException.printStackTrace();
+		}
+		
+		try {
+			messageSender.shutdown();
+		} catch (IOException e) {
+			// There is problem with closing ClientMessageSender's resources.
+			e.printStackTrace();
 		}
 	}
 
@@ -74,31 +103,33 @@ public class ClientMessageListener implements Runnable {
 	 * @return Returns false if error occurs while opening data input stream,
 	 *         reading from input stream or reading result message from socket
 	 *         input stream.
+	 * @throws IOException
 	 */
-	private boolean initializeMessageListener() {
+	private boolean registerUser() throws IOException {
 		try {
-			listener = new DataInputStream(client.getInputStream());
+			// Reads username from the user and sends it for validation to the
+			// server.
+			messageSender.initializeUsername();
+		} catch (IOException ex) {
+			throw new IOException(ex);
+		}
+
+		try {
+			// Reads and integer code from the server. The value depends on
+			// server side validation for the username.
+			Integer result = listener.readInt();
+			displayConvertResultCodeToMessage(result);
+
+			// Looping until a message for successful login is received.
+			while (result != SystemCode.SUCCESSFUL_LOGIN) {
+				messageSender.initializeUsername();
+				result = listener.readInt();
+				displayConvertResultCodeToMessage(result);
+			}
 		} catch (IOException ioException) {
-			// Unable to open input stream.
 			ioException.printStackTrace();
 			return false;
 		}
-
-			try {
-				// TODO
-				Integer result = listener.readInt();
-				displayConvertResultCodeToMessage(result);
-
-				// Looping until a message for successful login is received.
-				while (result != SystemCode.SUCCESSFUL_LOGIN) {
-					messageSender.initializeUsername();
-					result = listener.readInt();
-					displayConvertResultCodeToMessage(result);
-				}
-			} catch (IOException ioException) {
-				ioException.printStackTrace();
-				return false;
-			}
 
 		return true;
 	}
@@ -107,7 +138,8 @@ public class ClientMessageListener implements Runnable {
 	 * Accepts system code sent from server and prints a message depending on
 	 * code value.
 	 * 
-	 * @param result Result code sent from server.
+	 * @param result
+	 *            Result code sent from server.
 	 */
 	private void displayConvertResultCodeToMessage(Integer result) {
 		String message = new String();
@@ -138,7 +170,8 @@ public class ClientMessageListener implements Runnable {
 	/**
 	 * Accepts a string and displays it to the client.
 	 * 
-	 * @param message A message to be displayed
+	 * @param message
+	 *            A message to be displayed
 	 */
 	private void display(String message) {
 		System.out.println(message);

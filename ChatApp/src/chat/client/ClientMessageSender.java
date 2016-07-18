@@ -9,7 +9,7 @@ import chat.constants.SystemCode;
 
 public class ClientMessageSender implements Runnable {
 
-	private Socket client;
+	private Socket socket;
 	private DataOutputStream output;
 	private Scanner inputReader;
 	private String username;
@@ -19,7 +19,7 @@ public class ClientMessageSender implements Runnable {
 	private boolean expextedExitMessage;
 
 	public ClientMessageSender(Socket socket, Scanner inputReader) {
-		this.client = socket;
+		this.socket = socket;
 		this.inputReader = inputReader;
 	}
 
@@ -30,19 +30,23 @@ public class ClientMessageSender implements Runnable {
 		setUsername(username);
 		try {
 			System.out.println("Enter your message: ");
+			
 			while (isRunning) {
 				String message = inputReader.nextLine();
-				
+
+				// Disconnected from server. Ask the user to enter a command to
+				// stop thread used by ClientMessageSender.
 				if (expextedExitMessage) {
 					while (!message.equals(UserCommands.EXIT)) {
-						System.out.println("You have been disconnected from server. Enter \"/exit\" to stop the program.");
+						System.out.println(
+								"You have been disconnected from server. Enter \"/exit\" to stop the program.");
 						message = inputReader.nextLine();
 					}
-					
-					// Exit message is entered. Stop the run method.
+
+					// Exit command is entered. Stop the run method.
 					continue;
 				}
-				
+
 				if (message.equalsIgnoreCase(UserCommands.LOGOUT)) {
 					// User asked to logout.
 					logout();
@@ -59,6 +63,7 @@ public class ClientMessageSender implements Runnable {
 			}
 		} catch (IOException ioException) {
 			isRunning = false;
+			ioException.printStackTrace();
 		} finally {
 			inputReader.close();
 		}
@@ -69,11 +74,28 @@ public class ClientMessageSender implements Runnable {
 	}
 
 	/**
+	 * Open data stream used by ClientMessageSender
+	 * 
+	 * @throws IOException
+	 *             If the data stream cannot be opened.
+	 */
+	public void init() throws IOException {
+		try {
+			output = new DataOutputStream(socket.getOutputStream());
+		} catch (IOException ioException) {
+			throw new IOException(ioException);
+		}
+	}
+
+	/**
 	 * Sends a message to server listeners.
 	 * 
-	 * @param message Text message to be sent.
-	 * @param recipient Username of the recipient in String format.
-	 * @throws IOException If connection error occurs during sending the message.
+	 * @param message
+	 *            Text message to be sent.
+	 * @param recipient
+	 *            Username of the recipient in String format.
+	 * @throws IOException
+	 *             If connection error occurs during sending the message.
 	 */
 	protected void sendMessage(Integer systemCode, String message, String recipient) throws IOException {
 		output.writeInt(systemCode);
@@ -102,13 +124,6 @@ public class ClientMessageSender implements Runnable {
 	 * @throws IOException
 	 */
 	protected void initializeUsername() throws IOException {
-		try {
-			output = new DataOutputStream(client.getOutputStream());
-		} catch (IOException ioException) {
-			ioException.printStackTrace();
-			throw new IOException(ioException);
-		}
-
 		System.out.print("Enter your username: ");
 		try {
 			username = inputReader.nextLine();
@@ -120,9 +135,8 @@ public class ClientMessageSender implements Runnable {
 			sendRegisterMessage(SystemCode.REGISTER, username);
 
 		} catch (IOException ioException) {
-			ioException.printStackTrace();
 			isRunning = false;
-			throw new IOException(ioException);
+			throw new IOException("Unable to send message to server.", ioException);
 		}
 	}
 
@@ -131,48 +145,58 @@ public class ClientMessageSender implements Runnable {
 	}
 
 	/**
-	 * System message for shutting down the client was received. The message sender terminates.
+	 * System message for shutting down the client was received. The message
+	 * sender terminates.
+	 * @throws IOException 
 	 */
-	protected void shutdown() {
+	protected void shutdown() throws IOException {
+		expextedExitMessage = true;
+		isRunning = false;
+		
 		try {
-			expextedExitMessage = true;
-			isRunning = false;
-			System.out.println("Enter \"/exit\" to stop the program.");
-			//todo
-			output.close();
-			client.close();
+			socket.close();
 		} catch (IOException ioException) {
-			ioException.printStackTrace();
+			throw new IOException("Unable to close client socket.", ioException);
+		}
+		
+		try {
+			output.close();
+		} catch (IOException ioException) {
+			throw new IOException("Unable to close output data stream.", ioException);
 		}
 	}
 
 	/**
 	 * Send a register message to server.
-	 * @param messageCode The system code of the message is used to define the type of the message.
-	 * @param username The username of the new client.
-	 * @throws IOException 
+	 * 
+	 * @param messageCode
+	 *            The system code of the message is used to define the type of
+	 *            the message.
+	 * @param username
+	 *            The username of the new client.
+	 * @throws IOException
 	 */
 	private void sendRegisterMessage(int messageCode, String username) throws IOException {
 		output.writeInt(messageCode);
 		output.writeUTF(username);
 		output.flush();
 	}
-	
+
 	/**
-	 * Stops reading input and sends a system message to stop the client input
+	 * Stops reading input and sends a system message to stop the client message
 	 * listener.
+	 * @throws IOException 
 	 */
-	private void logout() {
+	private void logout() throws IOException {
+		isRunning = false;
+
 		try {
 			output.writeInt(SystemCode.LOGOUT);
 			output.writeUTF(username);
 			output.flush();
-			inputReader.close();
 		} catch (IOException ioException) {
-			ioException.printStackTrace();
+			throw new IOException(ioException);
 		}
-
-		isRunning = false;
 	}
 
 	/**
@@ -180,7 +204,8 @@ public class ClientMessageSender implements Runnable {
 	 * message. Valid username is at least 3 characters long, starts with
 	 * English letter and differ from special names /admin, administrator/
 	 * 
-	 * @param name A username to be validated.
+	 * @param name
+	 *            A username to be validated.
 	 * @return Returns false if the validation fails and true otherwise.
 	 */
 	private boolean validateUsername(String name) {

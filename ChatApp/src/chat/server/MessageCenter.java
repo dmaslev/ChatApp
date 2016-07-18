@@ -62,7 +62,6 @@ public class MessageCenter extends Thread {
 	 * Adds a system message in the queue to terminate the client sender. If the
 	 * client listener is not terminated the system message terminates it.
 	 * 
-	 * @param isClientListenerClosed Indicates if the client listener has been already closed.
 	 * @param name The username of the client.
 	 */
 	protected void disconnectUser(String name) {

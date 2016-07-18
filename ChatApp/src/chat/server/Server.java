@@ -111,8 +111,9 @@ public class Server {
 	/**
 	 * Stops waiting for new connections. Calls disconnect method on all
 	 * connected users and closes the server socket.
+	 * @throws IOException 
 	 */
-	protected void stopServer() {
+	protected void stopServer() throws IOException {
 		isRunning = false;
 		for (String username : clients.keySet()) {
 			User user = clients.get(username);
@@ -126,7 +127,7 @@ public class Server {
 			try {
 				socket.close();
 			} catch (IOException ioException) {
-				ioException.printStackTrace();
+				throw new IOException(ioException);
 			}
 		}
 
@@ -164,8 +165,9 @@ public class Server {
 	 * connections.
 	 * 
 	 * @param args Server port. If null, default value is used.
+	 * @throws IOException 
 	 */
-	private void startServer(String[] args) {
+	private void startServer(String[] args) throws IOException {
 		isRunning = true;
 		try {
 			initializeServer(args);
@@ -178,15 +180,10 @@ public class Server {
 
 				waitForConnections();
 			}
-		} catch (BindException bindException) {
-			bindException.printStackTrace();
 		} catch (IOException ioException) {
 			isRunning = false;
-			ioException.printStackTrace();
-		} catch (IllegalArgumentException exception) {
-			isRunning = false;
-			exception.printStackTrace();
-		}
+			throw new IOException(ioException);
+		} 
 	}
 	
 	/**
@@ -250,32 +247,34 @@ public class Server {
 		messageCenter.addMessageToQueue(message);
 	}
 
-	private void initializeServer(String[] args) throws IOException, NumberFormatException, BindException {
+	private void initializeServer(String[] args) throws IOException, IllegalArgumentException {
+		if (args == null) {
+			return;
+		}
+		
 		int port = DEFAULT_PORT;
 		try {
 			if (args.length == 1) {
 				port = Integer.parseInt(args[0]);
 				if (port < 1 || port > 65535) {
 					// Invalid port number
-					throw new IllegalArgumentException("Invalud port number");
+					throw new IllegalArgumentException("Invalid port number");
 				}
 			} else if (args.length > 1) {
 				System.out.println("Unknow number of arguments. Start the program with only one "
 						+ "argument for port number or without any arguments to use the default one.");
 				isRunning = false;
+				return;
 			}
 		} catch (NumberFormatException numberFormatException) {
-			System.out.println(args[0] + " is not a valid port.");
-			numberFormatException.printStackTrace();
-			throw new IllegalArgumentException(numberFormatException);
+			throw new IllegalArgumentException(args[0] + " is not a valid port.", numberFormatException);
 		}
 
 		try {
 			serverSocket = new ServerSocket(port);
 		} catch (BindException bindException) {
-			System.out.println("Port " + port + " is already in use.");
 			isRunning = false;
-			throw new IOException(bindException);
+			throw new IOException("Port " + port + " is already in use.", bindException);
 		}
 
 		if (isRunning) {
@@ -288,7 +287,7 @@ public class Server {
 		}
 	}
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws IOException {
 		Server server = new Server();
 		server.startServer(args);
 	}

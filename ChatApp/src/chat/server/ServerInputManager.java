@@ -1,5 +1,6 @@
 package chat.server;
 
+import java.io.IOException;
 import java.util.Scanner;
 
 public class ServerInputManager extends Thread {
@@ -34,6 +35,8 @@ public class ServerInputManager extends Thread {
 					System.out.println("Invalid command.");
 				}
 			}
+		} catch (IOException e) {
+			e.printStackTrace();
 		} finally {
 			reader.close();
 		}

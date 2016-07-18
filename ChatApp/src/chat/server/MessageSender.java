@@ -23,7 +23,7 @@ public class MessageSender implements Runnable {
 			if (message.getSystemCode() == SystemCode.REGISTER) {
 				sendRegisterMessage(message);
 				return;
-			}
+			} 
 			
 			sendSystemMessage(message.getSystemCode(), message);
 			
