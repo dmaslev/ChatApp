@@ -44,13 +44,14 @@ public class Client {
 	 * @throws InterruptedException
 	 */
 	private void startClient() throws IOException, InterruptedException {
+		ClientMessageListener listener  = null;
 		try {
 			Socket socket = new Socket(serverAddress, port);
 			System.out.println("Successfully connected to: " + serverAddress + " on port: " + port);
 			
 			ClientMessageSender sender = new ClientMessageSender(socket, inputReader);
 			sender.init();
-			ClientMessageListener listener = new ClientMessageListener(socket, sender);
+			listener = new ClientMessageListener(socket, sender);
 			listener.init();
 			
 			Thread listenerThread = new Thread(listener);
@@ -62,9 +63,8 @@ public class Client {
 			throw new IOException(unknownHostException);
 		} catch (IOException ioException) {
 			System.out.println("Unable to connect to " + serverAddress + " on port " + port);
-			ioException.printStackTrace();
 			throw new IOException(ioException);
-		}
+		} 
 	}
 
 	/**
@@ -111,14 +111,14 @@ public class Client {
 		}
 	}
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws Exception {
 		Client client = new Client();
 		try {
 			client.initializeClient(args);
 		} catch (IOException ioException) {
-			ioException.printStackTrace();
+			throw new IOException(ioException);
 		} catch (RuntimeException runtimeException) {
-			runtimeException.printStackTrace();
+			throw new Exception(runtimeException);
 		}
 	}
 }

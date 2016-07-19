@@ -58,7 +58,11 @@ public class ClientMessageListener implements Runnable {
 			ioException.printStackTrace();
 			isRunning = false;
 		} finally {
-			closeResources();
+			try {
+				closeResources();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 		}
 	}
 
@@ -77,7 +81,7 @@ public class ClientMessageListener implements Runnable {
 		}
 	}
 	
-	private void closeResources() {
+	protected void closeResources() throws IOException {
 		try {
 			listener.close();
 		} catch (IOException ioException) {
@@ -94,7 +98,7 @@ public class ClientMessageListener implements Runnable {
 			messageSender.shutdown();
 		} catch (IOException e) {
 			// There is problem with closing ClientMessageSender's resources.
-			e.printStackTrace();
+			throw new IOException(e);
 		}
 	}
 

@@ -21,21 +21,35 @@ public class MessageSender implements Runnable {
 	public void run() {
 		if (message.getIsSystemMessage()) {
 			if (message.getSystemCode() == SystemCode.REGISTER) {
-				sendRegisterMessage(message);
+				try {
+					sendRegisterMessage(message);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
 				return;
 			} 
 			
-			sendSystemMessage(message.getSystemCode(), message);
+			try {
+				String text = message.getMessageText();
+				String recipient = message.getRecipient();
+				sendSystemMessageToOneUser(text, recipient);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 			
 			if (message.getSystemCode() == SystemCode.LOGOUT) {
 				server.removeUser(message.getRecipient());
 			}
 		} else {
-			sendMessage(message);
+			try {
+				sendMessage(message);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 		}
 	}
 
-	private void sendRegisterMessage(Message message) {
+	private void sendRegisterMessage(Message message) throws IOException {
 		Socket ct = message.getSocket();
 		int resultCode = Integer.parseInt(message.getMessageText());
 		DataOutputStream out;
@@ -44,7 +58,7 @@ public class MessageSender implements Runnable {
 			out.writeInt(resultCode);
 			out.flush();
 		} catch (IOException ioException) {
-			ioException.printStackTrace();
+			throw new IOException(ioException);
 		}
 		
 	}
@@ -54,8 +68,9 @@ public class MessageSender implements Runnable {
 	 * proper method to send the message.
 	 * 
 	 * @param message A message to be sent.
+	 * @throws IOException 
 	 */
-	private void sendMessage(Message message) {
+	private void sendMessage(Message message) throws IOException {
 		String sender = message.getSender();
 		String messageText = message.getMessageText();
 		String recipient = message.getRecipient();
@@ -74,26 +89,23 @@ public class MessageSender implements Runnable {
 		
 		sendSystemMessageToOneUser("Enter your message: ", sender);
 	}
-	
-	private void sendSystemMessage(int systemCode, Message message) {
-		String text = message.getMessageText();
-		sendSystemMessageToOneUser(text, message.getRecipient());
-	}
 
 	/**
 	 * A method used to send system message to only client.
 	 * 
 	 * @param recipient The username of recipient.
 	 * @param textMessage Information message for the client.
+	 * @throws IOException 
 	 */
-	private void sendSystemMessageToOneUser(String textMessage, String recipient) {
+	private void sendSystemMessageToOneUser(String textMessage, String recipient) throws IOException {
 		try {
 			Socket client = server.getClients().get(recipient).getSocket();
 			DataOutputStream out = new DataOutputStream(client.getOutputStream());
+			System.out.println(textMessage);
 			out.writeUTF(textMessage);
 			out.flush();
 		} catch (IOException ioException) {
-			ioException.printStackTrace();
+			throw new IOException(ioException);
 		}
 	}
 
@@ -103,8 +115,9 @@ public class MessageSender implements Runnable {
 	 * @param recipient The username of recipient.
 	 * @param messageText The text of the message.
 	 * @param sender Username of sender of the message.
+	 * @throws IOException 
 	 */
-	private void sendMessagetoOneUser(String recipient, String messageText, String sender) {
+	private void sendMessagetoOneUser(String recipient, String messageText, String sender) throws IOException {
 		Map<String, User> clients = server.getClients();
 		User user = clients.get(recipient);
 
@@ -139,8 +152,9 @@ public class MessageSender implements Runnable {
 	 * 
 	 * @param sender The author of the message.
 	 * @param messageText The text of the message.
+	 * @throws IOException 
 	 */
-	private void sendMessageToAllUsers(String sender, String messageText) {
+	private void sendMessageToAllUsers(String sender, String messageText) throws IOException {
 		messageText = sender + ": " + messageText;
 
 		for (String client : server.getClients().keySet()) {
@@ -159,8 +173,7 @@ public class MessageSender implements Runnable {
 
 				out.flush();
 			} catch (IOException ioException) {
-				System.out.println("Unable to send the message to " + client);
-				ioException.printStackTrace();
+				throw new IOException("Unable to send the message to " + client, ioException);
 			}
 		}
 	}

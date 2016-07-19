@@ -57,6 +57,7 @@ public class ServersideListener extends Thread {
 			usernameAttached = client.getInetAddress().toString();
 			messageServer.removeUser(usernameAttached);
 			keepRunning = false;
+			ioException.printStackTrace();
 		} 
 	}
 

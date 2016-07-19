@@ -1,13 +1,13 @@
 package chat.server;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.BindException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 
 import chat.constants.SystemCode;
@@ -18,12 +18,10 @@ public class Server {
 	private final int DEFAULT_PORT = 2222;
 	private ServerSocket serverSocket;
 	private boolean isRunning;
+	private int count = 0;
 
 	// Collection for all logged in users.
 	private Map<String, User> clients;
-
-	// Collection for connected users, before they log in.
-	private HashSet<Socket> connectedClients;
 
 	private MessageCenter messageCenter;
 	private ServerInputManager serverInput;
@@ -33,8 +31,8 @@ public class Server {
 	 * provided username.
 	 * 
 	 * @param username
-	 * @return Returns true if the user is found in the collection with all 
-	 * connected users and false otherwise.
+	 * @return Returns true if the user is found in the collection with all
+	 *         connected users and false otherwise.
 	 */
 	protected synchronized boolean isUserConnected(String username) {
 		User client = clients.get(username);
@@ -64,36 +62,42 @@ public class Server {
 	 * Validates the username. If the validation is passed creates a new User
 	 * and adds it in the collection of all connected user.
 	 * 
-	 * @param name Username of the user.
-	 * @param client Socket of the user.
-	 * @param messageSender Message sender of the user.
-	 * @param messageListener Message listener of the user.
+	 * @param name
+	 *            Username of the user.
+	 * @param client
+	 *            Socket of the user.
+	 * @param messageSender
+	 *            Message sender of the user.
+	 * @param messageListener
+	 *            Message listener of the user.
+	 * @throws IOException
 	 */
-	protected synchronized void addUser(String name, Socket client, ServersideListener messageListener) {
+	protected synchronized void addUser(String name, Socket client, ServersideListener messageListener)
+			throws IOException {
 		int resultCode = validateUsername(name);
-		try {
-			sendMessageToClient(client, resultCode);
-
-			if (resultCode == SystemCode.SUCCESSFUL_LOGIN) {
-				User connectedUser = new User(client, name);
-				connectedUser.setOutputStream();
-				
-				messageListener.setUsername(name);
-				clients.put(name, connectedUser);
-				connectedClients.remove(client);
+		sendMessageToClient(client, resultCode);
+		if (resultCode == SystemCode.SUCCESSFUL_LOGIN) {
+			for (String key : clients.keySet()) {
+				User currentUser = clients.get(key);
+				Socket currentUserSocket = currentUser.getSocket();
+				if (currentUserSocket == client) {
+					currentUser.setUsername(name);
+					clients.put(name, currentUser);
+					messageListener.setUsername(name);
+					clients.remove(key);
+				}
 			}
-		} catch (IOException ioException) {
-			System.out.println("User has been disconnected. Unable to send the message.");
-			ioException.printStackTrace();
 		}
 	}
 
 	/**
 	 * Removes a use from the collection with all connected users.
 	 * 
-	 * @param username Name of the user to be removed.
-	 * @param client Used if the user is connected, but not logged in with
-	 *            username yet.
+	 * @param username
+	 *            Name of the user to be removed.
+	 * @param client
+	 *            Used if the user is connected, but not logged in with username
+	 *            yet.
 	 */
 	protected synchronized void removeUser(String username) {
 		System.out.println(username + " disconnected.");
@@ -111,23 +115,20 @@ public class Server {
 	/**
 	 * Stops waiting for new connections. Calls disconnect method on all
 	 * connected users and closes the server socket.
-	 * @throws IOException 
+	 * 
+	 * @throws IOException
 	 */
 	protected void stopServer() throws IOException {
 		isRunning = false;
 		for (String username : clients.keySet()) {
 			User user = clients.get(username);
 			if (user != null) {
+				if (!user.isLoggedIn()) {
+					user.getSocket().close();
+				}
+				
 				Message shutDownMessage = new Message("disconnect", username, SystemCode.DISCONNECT);
 				messageCenter.addMessageToQueue(shutDownMessage);
-			}
-		}
-
-		for (Socket socket : connectedClients) {
-			try {
-				socket.close();
-			} catch (IOException ioException) {
-				throw new IOException(ioException);
 			}
 		}
 
@@ -137,7 +138,7 @@ public class Server {
 			serverSocket.close();
 		} catch (IOException ioException) {
 			// The socket is already closed.
-			ioException.printStackTrace();
+			throw new IOException(ioException);
 		}
 
 		System.out.println("Server successfully disconnected.");
@@ -148,7 +149,8 @@ public class Server {
 	 * by the user. Prints an error message if there is no user with such
 	 * username.
 	 * 
-	 * @param name The name of the user to be disconnected.
+	 * @param name
+	 *            The name of the user to be disconnected.
 	 */
 	protected void disconnectUser(String name) {
 		User user = clients.get(name);
@@ -164,8 +166,9 @@ public class Server {
 	 * Initializes the server, opens the server socket and waits for user
 	 * connections.
 	 * 
-	 * @param args Server port. If null, default value is used.
-	 * @throws IOException 
+	 * @param args
+	 *            Server port. If null, default value is used.
+	 * @throws IOException
 	 */
 	private void startServer(String[] args) throws IOException {
 		isRunning = true;
@@ -183,9 +186,9 @@ public class Server {
 		} catch (IOException ioException) {
 			isRunning = false;
 			throw new IOException(ioException);
-		} 
+		}
 	}
-	
+
 	/**
 	 * Accepts a username, checks if it is a valid username and returns a error
 	 * code. Valid username is at least 3 characters long, starts with English
@@ -221,15 +224,18 @@ public class Server {
 			System.out.println("Enter \"/help\" to see the help menu.");
 		} catch (UnknownHostException unknownHostException) {
 			// Unable to read local address.
-			unknownHostException.printStackTrace();
+			throw new UncheckedIOException(new IOException(unknownHostException));
 		}
 	}
 
-	private void waitForConnections() {
+	private void waitForConnections() throws IOException {
 		while (isRunning) {
 			try {
 				Socket socket = serverSocket.accept();
-				connectedClients.add(socket);
+				String name = "TempUser" + count;
+				User user = new User(socket, name);
+				++count;
+				clients.put(name, user);
 				System.out.println(socket.getInetAddress() + " connected");
 
 				ServersideListener client = new ServersideListener(socket, messageCenter, this);
@@ -237,6 +243,7 @@ public class Server {
 			} catch (IOException ioException) {
 				// Server socket was closed while waiting for connections.
 				isRunning = false;
+				throw new IOException(ioException);
 			}
 		}
 	}
@@ -251,7 +258,7 @@ public class Server {
 		if (args == null) {
 			return;
 		}
-		
+
 		int port = DEFAULT_PORT;
 		try {
 			if (args.length == 1) {
@@ -281,8 +288,6 @@ public class Server {
 			// All logged in clients.
 			clients = new HashMap<>();
 
-			// Collection with connected, but not logged in users.
-			connectedClients = new HashSet<>();
 			printWelcomeMessage();
 		}
 	}
