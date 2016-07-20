@@ -2,9 +2,9 @@ package chat.constants;
 
 public class SystemCode {
 	
-	public static final int REGULAR_MESSAGE = 400;
-	public static final int DISCONNECT = 300;
-	public static final int LOGOUT = 200;
-	public static final int REGISTER = 100;
-	public static final int SUCCESSFUL_LOGIN = 0;
+	public static final String REGULAR_MESSAGE = "400";
+	public static final String DISCONNECT = "300";
+	public static final String LOGOUT = "200";
+	public static final String REGISTER = "100";
+	public static final String SUCCESSFUL_LOGIN = "0";
 }

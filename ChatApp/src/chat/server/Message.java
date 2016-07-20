@@ -1,6 +1,6 @@
 package chat.server;
 
-import java.net.Socket;
+import java.io.BufferedWriter;
 
 public class Message {
 
@@ -13,9 +13,15 @@ public class Message {
 	private boolean isSystemMessage;
 	
 	// Variable used to define different system messages.
-	private int systemCode;
-	private Socket socket;
+	private String systemCode;
+	private BufferedWriter output;
 
+	public Message(String text, String recipient, String sender, String systemCode) {
+		this(text, recipient, sender);
+		this.systemCode = systemCode;
+		this.isSystemMessage = true;
+	}
+	
 	public Message(String text, String recipient, String sender) {
 		this.text = text;
 		this.recipient = recipient;
@@ -23,16 +29,9 @@ public class Message {
 		this.isSystemMessage = false;
 	}
 
-	public Message(String text, String recipient, int systemCode) {
-		this(text, recipient, "admin");
-		this.systemCode = systemCode;
-		this.isSystemMessage = true;
-
-	}
-
-	public Message(String text, Socket socket, int systemCode) {
+	public Message(String text, BufferedWriter output, String systemCode) {
 		this.text = text;
-		this.socket = socket;
+		this.output = output;
 		this.systemCode = systemCode;
 		this.isSystemMessage = true;
 	}
@@ -53,11 +52,11 @@ public class Message {
 		return this.sender;
 	}
 	
-	public Socket getSocket() {
-		return this.socket;
+	public BufferedWriter getOutput() {
+		return this.output;
 	}
 
-	public int getSystemCode() {
+	public String getSystemCode() {
 		return this.systemCode;
 	}
 }

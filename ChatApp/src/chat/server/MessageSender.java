@@ -1,14 +1,13 @@
 package chat.server;
 
-import java.io.DataOutputStream;
+import java.io.BufferedWriter;
 import java.io.IOException;
-import java.net.Socket;
 import java.util.Map;
 
 import chat.constants.SystemCode;
 
 public class MessageSender implements Runnable {
-	
+
 	private Message message;
 	private Server server;
 
@@ -20,55 +19,63 @@ public class MessageSender implements Runnable {
 	@Override
 	public void run() {
 		if (message.getIsSystemMessage()) {
-			if (message.getSystemCode() == SystemCode.REGISTER) {
+			if (message.getSystemCode().equals(SystemCode.REGISTER)) {
 				try {
 					sendRegisterMessage(message);
 				} catch (IOException e) {
+					// Sending message to the client failed. Possible reasons -
+					// client has been disconnected or output stream was closed.
 					e.printStackTrace();
 				}
+				
 				return;
-			} 
-			
+			}
+
 			try {
 				String text = message.getMessageText();
 				String recipient = message.getRecipient();
 				sendSystemMessageToOneUser(text, recipient);
 			} catch (IOException e) {
+				// Sending message to the client failed. Possible reasons -
+				// client has been disconnected or output stream was closed.
 				e.printStackTrace();
 			}
-			
-			if (message.getSystemCode() == SystemCode.LOGOUT) {
+
+			if (message.getSystemCode().equals(SystemCode.LOGOUT)) {
 				server.removeUser(message.getRecipient());
 			}
 		} else {
 			try {
 				sendMessage(message);
 			} catch (IOException e) {
+				// Sending message to the client failed. Possible reasons -
+				// client has been disconnected or output stream was closed.
 				e.printStackTrace();
 			}
 		}
 	}
 
 	private void sendRegisterMessage(Message message) throws IOException {
-		Socket ct = message.getSocket();
-		int resultCode = Integer.parseInt(message.getMessageText());
-		DataOutputStream out;
+		String resultCode = message.getMessageText();
+		BufferedWriter out;
 		try {
-			out = new DataOutputStream(ct.getOutputStream());
-			out.writeInt(resultCode);
+			out = message.getOutput();
+			out.write(resultCode);
+			out.newLine();
 			out.flush();
 		} catch (IOException ioException) {
-			throw new IOException(ioException);
+			throw new IOException("Unable to send the message to client. ", ioException);
 		}
-		
+
 	}
 
 	/**
-	 * Sends a message to the client. Depending on the message type calls 
-	 * proper method to send the message.
+	 * Sends a message to the client. Depending on the message type calls proper
+	 * method to send the message.
 	 * 
-	 * @param message A message to be sent.
-	 * @throws IOException 
+	 * @param message
+	 *            A message to be sent.
+	 * @throws IOException
 	 */
 	private void sendMessage(Message message) throws IOException {
 		String sender = message.getSender();
@@ -86,36 +93,49 @@ public class MessageSender implements Runnable {
 				sendSystemMessageToOneUser(errorMessage, sender);
 			}
 		}
-		
+
 		sendSystemMessageToOneUser("Enter your message: ", sender);
 	}
 
 	/**
 	 * A method used to send system message to only client.
 	 * 
-	 * @param recipient The username of recipient.
-	 * @param textMessage Information message for the client.
-	 * @throws IOException 
+	 * @param recipient
+	 *            The username of recipient.
+	 * @param textMessage
+	 *            Information message for the client.
+	 * @throws IOException
 	 */
 	private void sendSystemMessageToOneUser(String textMessage, String recipient) throws IOException {
 		try {
-			Socket client = server.getClients().get(recipient).getSocket();
-			DataOutputStream out = new DataOutputStream(client.getOutputStream());
-			System.out.println(textMessage);
-			out.writeUTF(textMessage);
+			User user = server.getClients().get(recipient);
+			if (user == null) {
+				return;
+			}
+			
+			BufferedWriter out = user.getOutputStream();
+			if (out == null) {
+				return;
+			}
+			
+			out.write(textMessage);
+			out.newLine();
 			out.flush();
 		} catch (IOException ioException) {
-			throw new IOException(ioException);
+			throw new IOException("Unable to send the message to " + recipient, ioException);
 		}
 	}
 
 	/**
 	 * Sends message to one user.
 	 * 
-	 * @param recipient The username of recipient.
-	 * @param messageText The text of the message.
-	 * @param sender Username of sender of the message.
-	 * @throws IOException 
+	 * @param recipient
+	 *            The username of recipient.
+	 * @param messageText
+	 *            The text of the message.
+	 * @param sender
+	 *            Username of sender of the message.
+	 * @throws IOException
 	 */
 	private void sendMessagetoOneUser(String recipient, String messageText, String sender) throws IOException {
 		Map<String, User> clients = server.getClients();
@@ -129,30 +149,34 @@ public class MessageSender implements Runnable {
 		}
 
 		try {
-			DataOutputStream out = user.getOutputStream();
+			BufferedWriter out = user.getOutputStream();
 			if (!sender.equalsIgnoreCase("admin")) {
 				messageText = sender + ": " + messageText;
 			}
 
-			out.writeUTF(messageText);
+			out.write(messageText);
+			out.newLine();
 			out.flush();
 
 			if (!sender.equals(recipient)) {
-				out.writeUTF("Enter your message: ");
+				out.write("Enter your message: ");
+				out.newLine();
 				out.flush();
 			}
 		} catch (IOException ioException) {
-			ioException.printStackTrace();
+			throw new IOException("Unable to send the message to " + recipient, ioException);
 		}
 	}
 
 	/**
-	 * Sends message to all connected users. The message is not being sent to 
+	 * Sends message to all connected users. The message is not being sent to
 	 * the author.
 	 * 
-	 * @param sender The author of the message.
-	 * @param messageText The text of the message.
-	 * @throws IOException 
+	 * @param sender
+	 *            The author of the message.
+	 * @param messageText
+	 *            The text of the message.
+	 * @throws IOException
 	 */
 	private void sendMessageToAllUsers(String sender, String messageText) throws IOException {
 		messageText = sender + ": " + messageText;
@@ -166,11 +190,12 @@ public class MessageSender implements Runnable {
 			User user = server.getClients().get(client);
 
 			try {
-				DataOutputStream out = user.getOutputStream();
+				BufferedWriter out = user.getOutputStream();
 
-				out.writeUTF(messageText);
-				out.writeUTF("Enter your message: ");
-
+				out.write(messageText);
+				out.newLine();
+				out.write("Enter your message: ");
+				out.newLine();
 				out.flush();
 			} catch (IOException ioException) {
 				throw new IOException("Unable to send the message to " + client, ioException);

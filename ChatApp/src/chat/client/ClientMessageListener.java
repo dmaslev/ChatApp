@@ -1,7 +1,8 @@
 package chat.client;
 
-import java.io.DataInputStream;
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.Socket;
 
 import chat.constants.SystemCode;
@@ -9,7 +10,8 @@ import chat.constants.SystemCode;
 public class ClientMessageListener implements Runnable {
 
 	private Socket socket;
-	private DataInputStream listener;
+	private BufferedReader listener;
+	private InputStreamReader innerStream;
 	private ClientMessageSender messageSender;
 
 	// Boolean variable used to stop the run method.
@@ -34,19 +36,16 @@ public class ClientMessageListener implements Runnable {
 			senderThread.start();
 
 			while (isRunning) {
-				String message = listener.readUTF();
+				String message = listener.readLine();
 				if (message.equalsIgnoreCase("logout")) {
 					// User asked to logout.
 					System.out.println("Successfully logged out.");
 					isRunning = false;
 				} else if (message.equalsIgnoreCase("disconnect")) {
-					// Sending a system message to stop message sender.
-					messageSender.sendMessage(SystemCode.DISCONNECT);
-					
 					// Server was shutdown or removed the user.
+					messageSender.shutdown();
 					System.out.print("You have been disconnected from server. ");
-					System.out.println("Enter \"/exit\" to stop the program.");
-					
+
 					isRunning = false;
 				} else {
 					display(message);
@@ -55,8 +54,8 @@ public class ClientMessageListener implements Runnable {
 		} catch (IOException ioException) {
 			// Unexpected connection lost.
 			System.out.print("Lost connection with server. ");
-			ioException.printStackTrace();
 			isRunning = false;
+			ioException.printStackTrace();
 		} finally {
 			try {
 				closeResources();
@@ -74,26 +73,27 @@ public class ClientMessageListener implements Runnable {
 	 */
 	public void init() throws IOException {
 		try {
-			listener = new DataInputStream(socket.getInputStream());
+			innerStream = new InputStreamReader(socket.getInputStream());
+			listener = new BufferedReader(innerStream);
 		} catch (IOException ioException) {
 			// Unable to open input stream.
-			throw new IOException("Unable to open the input stream. ", ioException);
+			throw new IOException("Unable to open the input stream.", ioException);
 		}
 	}
-	
+
 	protected void closeResources() throws IOException {
 		try {
 			listener.close();
 		} catch (IOException ioException) {
-			ioException.printStackTrace();
+			throw new IOException("BufferedReader.close failed.", ioException);
 		}
-		
+
 		try {
 			socket.close();
 		} catch (IOException ioException) {
-			ioException.printStackTrace();
+			throw new IOException("Closing the socket failed.", ioException);
 		}
-		
+
 		try {
 			messageSender.shutdown();
 		} catch (IOException e) {
@@ -113,7 +113,7 @@ public class ClientMessageListener implements Runnable {
 		try {
 			// Reads username from the user and sends it for validation to the
 			// server.
-			messageSender.initializeUsername();
+			messageSender.sendUsernameForValidation();
 		} catch (IOException ex) {
 			throw new IOException(ex);
 		}
@@ -121,18 +121,17 @@ public class ClientMessageListener implements Runnable {
 		try {
 			// Reads and integer code from the server. The value depends on
 			// server side validation for the username.
-			Integer result = listener.readInt();
+			String result = listener.readLine();
 			displayConvertResultCodeToMessage(result);
 
 			// Looping until a message for successful login is received.
-			while (result != SystemCode.SUCCESSFUL_LOGIN) {
-				messageSender.initializeUsername();
-				result = listener.readInt();
+			while (!result.equals(SystemCode.SUCCESSFUL_LOGIN)) {
+				messageSender.sendUsernameForValidation();
+				result = listener.readLine();
 				displayConvertResultCodeToMessage(result);
 			}
 		} catch (IOException ioException) {
-			ioException.printStackTrace();
-			return false;
+			throw new IOException(ioException);
 		}
 
 		return true;
@@ -145,22 +144,22 @@ public class ClientMessageListener implements Runnable {
 	 * @param result
 	 *            Result code sent from server.
 	 */
-	private void displayConvertResultCodeToMessage(Integer result) {
+	private void displayConvertResultCodeToMessage(String result) {
 		String message = new String();
 		switch (result) {
-		case 0:
+		case "0":
 			message = "Successfully logged in.";
 			break;
-		case 1:
+		case "1":
 			message = "Selected username is already in use. Please select a new one.";
 			break;
-		case 2:
+		case "2":
 			message = "Username must be at least 3 characters long.";
 			break;
-		case 3:
+		case "3":
 			message = "Selected username can not be used. Please select a new one.";
 			break;
-		case 4:
+		case "4":
 			message = "Username must start with english letter.";
 			break;
 		default:

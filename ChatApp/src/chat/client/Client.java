@@ -1,9 +1,9 @@
 package chat.client;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.Socket;
-import java.net.UnknownHostException;
-import java.util.Scanner;
 
 public class Client {
 
@@ -13,7 +13,7 @@ public class Client {
 	private String serverAddress;
 	private int port;
 
-	private Scanner inputReader;
+	private static BufferedReader inputReader;
 
 	/**
 	 * Sets connection to the server. Opens data input and output streams.
@@ -57,11 +57,7 @@ public class Client {
 			Thread listenerThread = new Thread(listener);
 			listenerThread.start();
 			listenerThread.join();
-		} catch (UnknownHostException unknownHostException) {
-			System.out.println(serverAddress + " can not be determinated.");
-			unknownHostException.printStackTrace();
-			throw new IOException(unknownHostException);
-		} catch (IOException ioException) {
+		}  catch (IOException ioException) {
 			System.out.println("Unable to connect to " + serverAddress + " on port " + port);
 			throw new IOException(ioException);
 		} 
@@ -74,8 +70,9 @@ public class Client {
 	 * 
 	 * @param args Arguments containing server address and server port.
 	 * @throws IllegalArgumentException when provided arguments are invalid.
+	 * @throws IOException 
 	 */
-	private void setSocketParameters(String[] args) throws IllegalArgumentException {
+	private void setSocketParameters(String[] args) throws IllegalArgumentException, IOException {
 		if (args == null) {
 			return;
 		}
@@ -100,8 +97,8 @@ public class Client {
 			// Server address and port number were not provided. The user will
 			// be asked to enter server address. 
 			System.out.print("Enter host address/ip adress of server/: ");
-			inputReader = new Scanner(System.in);
-			serverAddress = inputReader.nextLine();
+			inputReader = new BufferedReader(new InputStreamReader(System.in));
+			serverAddress = inputReader.readLine();
 			if (serverAddress.length() == 0) {
 				throw new IllegalArgumentException("Server adress can not be empty string.");
 			}
@@ -116,6 +113,7 @@ public class Client {
 		try {
 			client.initializeClient(args);
 		} catch (IOException ioException) {
+			inputReader.close();
 			throw new IOException(ioException);
 		} catch (RuntimeException runtimeException) {
 			throw new Exception(runtimeException);

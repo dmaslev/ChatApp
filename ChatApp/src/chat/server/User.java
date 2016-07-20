@@ -1,7 +1,6 @@
 package chat.server;
 
-import java.io.DataOutputStream;
-import java.net.Socket;
+import java.io.BufferedWriter;
 import java.util.Date;
 
 /**
@@ -11,50 +10,35 @@ import java.util.Date;
  */
 public class User {
 
-	private Socket socket;
-	private DataOutputStream writer;
+	private BufferedWriter output;
 
 	private Date connectedDate;
 	private String username;
-	private String adress;
-	
-	private boolean isLoggedIn;
+	private String address;
 
-	public User(Socket socket, String name) {
-		this.socket = socket;
-		this.adress = socket.getLocalAddress().toString();
+
+	public User(String name, BufferedWriter output, String address) {
+		this.address = address;
 		this.username = name;
+		this.output = output;
 		this.connectedDate = new Date();
-		this.isLoggedIn = false;
 	}
 
-	public Socket getSocket() {
-		return this.socket;
-	}
-
-	public DataOutputStream getOutputStream() {
-		return this.writer;
+	public BufferedWriter getOutputStream() {
+		return this.output;
 	}
 
 	public String getUsername() {
 		return this.username;
 	}
-	
-	public void setUsername(String name) {
-		this.username = name;
-		this.isLoggedIn = true;
-	}
-	
-	public boolean isLoggedIn() {
-		return this.isLoggedIn;
-	}
+
 
 	/**
 	 * Returns formated string with information about the user.
 	 */
 	@Override
 	public String toString() {
-		String info = "User: " + username + "(" + adress + "), connected: " + connectedDate;
+		String info = "User: " + username + "(" + address + "), connected: " + connectedDate;
 		return info;
 	}
 }

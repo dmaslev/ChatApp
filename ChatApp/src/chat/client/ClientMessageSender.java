@@ -1,51 +1,38 @@
 package chat.client;
 
-import java.io.DataOutputStream;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.net.Socket;
-import java.util.Scanner;
 
 import chat.constants.SystemCode;
 
 public class ClientMessageSender implements Runnable {
 
 	private Socket socket;
-	private DataOutputStream output;
-	private Scanner inputReader;
+	private BufferedWriter output;
+	private BufferedReader inputReader;
 	private String username;
 
 	// Boolean variable used to stop the run method.
 	private boolean isRunning;
-	private boolean expextedExitMessage;
+	private OutputStreamWriter innerStream;
 
-	public ClientMessageSender(Socket socket, Scanner inputReader) {
+	public ClientMessageSender(Socket socket, BufferedReader inputReader) {
 		this.socket = socket;
 		this.inputReader = inputReader;
 	}
 
 	public void run() {
 		this.isRunning = true;
-		this.expextedExitMessage = false;
 
 		setUsername(username);
 		try {
 			System.out.println("Enter your message: ");
-			
+
 			while (isRunning) {
-				String message = inputReader.nextLine();
-
-				// Disconnected from server. Ask the user to enter a command to
-				// stop thread used by ClientMessageSender.
-				if (expextedExitMessage) {
-					while (!message.equals(UserCommands.EXIT)) {
-						System.out.println(
-								"You have been disconnected from server. Enter \"/exit\" to stop the program.");
-						message = inputReader.nextLine();
-					}
-
-					// Exit command is entered. Stop the run method.
-					continue;
-				}
+				String message = inputReader.readLine();
 
 				if (message.equalsIgnoreCase(UserCommands.LOGOUT)) {
 					// User asked to logout.
@@ -56,7 +43,7 @@ public class ClientMessageSender implements Runnable {
 					isRunning = false;
 				} else {
 					System.out.print("Enter a username or \"/all\" to send to all connected users: ");
-					String receiver = inputReader.nextLine();
+					String receiver = inputReader.readLine();
 
 					sendMessage(SystemCode.REGULAR_MESSAGE, message, receiver);
 				}
@@ -65,7 +52,12 @@ public class ClientMessageSender implements Runnable {
 			isRunning = false;
 			ioException.printStackTrace();
 		} finally {
-			inputReader.close();
+			try {
+				inputReader.close();
+			} catch (IOException e) {
+				System.out.println("Closing input reader failed.");
+				e.printStackTrace();
+			}
 		}
 	}
 
@@ -81,9 +73,13 @@ public class ClientMessageSender implements Runnable {
 	 */
 	public void init() throws IOException {
 		try {
-			output = new DataOutputStream(socket.getOutputStream());
+			// There is no need to store OutputSream returned by
+			// socket.getOutputStream() because closing the socket will closed
+			// it.
+			innerStream = new OutputStreamWriter(socket.getOutputStream());
+			output = new BufferedWriter(innerStream);
 		} catch (IOException ioException) {
-			throw new IOException(ioException);
+			throw new IOException("Unable to open the output stream.", ioException);
 		}
 	}
 
@@ -97,21 +93,13 @@ public class ClientMessageSender implements Runnable {
 	 * @throws IOException
 	 *             If connection error occurs during sending the message.
 	 */
-	protected void sendMessage(Integer systemCode, String message, String recipient) throws IOException {
-		output.writeInt(systemCode);
-		output.writeUTF(message);
-		output.writeUTF(recipient);
-		output.flush();
-	}
-
-	/**
-	 * 
-	 * @param systemCode
-	 * @throws IOException
-	 */
-	protected void sendMessage(Integer systemCode) throws IOException {
-		output.writeInt(systemCode);
-		output.writeUTF(username);
+	protected void sendMessage(String systemCode, String message, String recipient) throws IOException {
+		output.write(systemCode);
+		output.newLine();
+		output.write(message);
+		output.newLine();
+		output.write(recipient);
+		output.newLine();
 		output.flush();
 	}
 
@@ -123,13 +111,13 @@ public class ClientMessageSender implements Runnable {
 	 *            BufferedReader for reading the input
 	 * @throws IOException
 	 */
-	protected void initializeUsername() throws IOException {
+	protected void sendUsernameForValidation() throws IOException {
 		System.out.print("Enter your username: ");
 		try {
-			username = inputReader.nextLine();
+			username = inputReader.readLine();
 			while (!validateUsername(username)) {
 				System.out.print("Enter your username: ");
-				username = inputReader.nextLine();
+				username = inputReader.readLine();
 			}
 
 			sendRegisterMessage(SystemCode.REGISTER, username);
@@ -147,22 +135,29 @@ public class ClientMessageSender implements Runnable {
 	/**
 	 * System message for shutting down the client was received. The message
 	 * sender terminates.
-	 * @throws IOException 
+	 * 
+	 * @throws IOException
 	 */
 	protected void shutdown() throws IOException {
-		expextedExitMessage = true;
-		isRunning = false;
-		
+		this.isRunning = false;
+		this.inputReader.close();
+
 		try {
-			socket.close();
+			innerStream.close();
 		} catch (IOException ioException) {
-			throw new IOException("Unable to close client socket.", ioException);
+			throw new IOException("Unable to close inner data stream.", ioException);
 		}
-		
+
 		try {
-			output.close();
+			this.output.close();
 		} catch (IOException ioException) {
 			throw new IOException("Unable to close output data stream.", ioException);
+		}
+
+		try {
+			this.socket.close();
+		} catch (IOException ioException) {
+			throw new IOException("Unable to close client socket.", ioException);
 		}
 	}
 
@@ -176,23 +171,28 @@ public class ClientMessageSender implements Runnable {
 	 *            The username of the new client.
 	 * @throws IOException
 	 */
-	private void sendRegisterMessage(int messageCode, String username) throws IOException {
-		output.writeInt(messageCode);
-		output.writeUTF(username);
+	private void sendRegisterMessage(String messageCode, String username) throws IOException {
+		output.write(messageCode);
+		output.newLine();
+		output.write(username);
+		output.newLine();
 		output.flush();
 	}
 
 	/**
 	 * Stops reading input and sends a system message to stop the client message
 	 * listener.
-	 * @throws IOException 
+	 * 
+	 * @throws IOException
 	 */
 	private void logout() throws IOException {
 		isRunning = false;
 
 		try {
-			output.writeInt(SystemCode.LOGOUT);
-			output.writeUTF(username);
+			output.write(SystemCode.LOGOUT);
+			output.newLine();
+			output.write(username);
+			output.newLine();
 			output.flush();
 		} catch (IOException ioException) {
 			throw new IOException(ioException);

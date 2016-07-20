@@ -1,23 +1,27 @@
 package chat.server;
 
-import java.io.DataInputStream;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.net.Socket;
 
 import chat.constants.SystemCode;
 
 public class ServersideListener extends Thread {
 
-	private Socket client;
-	private DataInputStream input;
+	private Socket clientSocket;
+	private BufferedWriter output;
+	private BufferedReader input;
 	private boolean keepRunning;
 
-	private MessageCenter messageCenter;
+	private MessageDispatcher messageCenter;
 	private Server messageServer;
 	private String usernameAttached;
-	
-	public ServersideListener(Socket client, MessageCenter messageCenter, Server messageServer) {
-		this.client = client;
+
+	public ServersideListener(Socket clientSocket, MessageDispatcher messageCenter, Server messageServer) {
+		this.clientSocket = clientSocket;
 		this.messageCenter = messageCenter;
 		this.messageServer = messageServer;
 	}
@@ -30,39 +34,47 @@ public class ServersideListener extends Thread {
 		this.keepRunning = true;
 
 		try {
-			input = new DataInputStream(client.getInputStream());
+			input = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
 
 			while (keepRunning) {
-				int messageType = input.readInt();
-				String textReceived = input.readUTF();
-				if (messageType == SystemCode.LOGOUT) {
+				String messageType = input.readLine();
+				String textReceived = input.readLine();
+				if (messageType.equals(SystemCode.LOGOUT)) {
 					keepRunning = false;
+					// TODO fix usernamerattached
 					messageCenter.disconnectUser(usernameAttached);
-				} else if (messageType == SystemCode.REGISTER) {
+				} else if (messageType.equals(SystemCode.REGISTER)) {
 					// Add user in the collection with all connected users
-					messageServer.addUser(textReceived, client, this);
-				} else if (messageType == SystemCode.DISCONNECT) {
-					// Client sender already closed. The client asked to
-					// close the clientListener
+					boolean successfulLogin = messageServer.addUser(textReceived, output, this);
+					if (!successfulLogin) {
+						// TODO User login failed. Stop the listener.
+						keepRunning = false;
+					}
+				} else if (messageType.equals(SystemCode.DISCONNECT)) {
+					// The client asked to close the clientListener.
 					messageServer.removeUser(usernameAttached);
 					keepRunning = false;
-				} else if (messageType == SystemCode.REGULAR_MESSAGE) {
-					String recipient = input.readUTF();
+				} else if (messageType.equals(SystemCode.REGULAR_MESSAGE)) {
+					String recipient = input.readLine();
 					Message message = new Message(textReceived, recipient, usernameAttached);
 					messageCenter.addMessageToQueue(message);
 				}
 			}
 		} catch (IOException ioException) {
 			// Connection lost
-			usernameAttached = client.getInetAddress().toString();
+			usernameAttached = clientSocket.getInetAddress().toString();
 			messageServer.removeUser(usernameAttached);
 			keepRunning = false;
 			ioException.printStackTrace();
-		} 
+		}
 	}
 
 	public Socket getSocket() {
-		return this.client;
+		return this.clientSocket;
+	}
+
+	public void setOutputStream() throws IOException {
+		this.output = new BufferedWriter(new OutputStreamWriter(this.clientSocket.getOutputStream()));
 	}
 
 	protected void setUsername(String name) {
