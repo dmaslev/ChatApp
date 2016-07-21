@@ -10,7 +10,7 @@ public class MessageDispatcher extends Thread {
 
 	private Server server;
 	private boolean keepRunning;
-	private boolean sendQueuedUpMessages;
+	private boolean shutDownImmediately;
 	private ExecutorService executorService;
 
 	private LinkedList<Message> messagesQueue;
@@ -23,13 +23,18 @@ public class MessageDispatcher extends Thread {
 	@Override
 	public void run() {
 		this.keepRunning = true;
-		this.sendQueuedUpMessages = true;
+		this.shutDownImmediately = true;
 		this.messagesQueue = new LinkedList<Message>();
 
 		// If the boolean variable keepRunning is set to false all messages
 		// currently in the queue will be sent and after that the run method
 		// will stop.
-		while (keepRunning || (messagesQueue.size() > 0 && sendQueuedUpMessages)) {
+		while (keepRunning || messagesQueue.size() > 0) {
+			if (shutDownImmediately) {
+				// Server asked to shut down the messageDispatcher immediately.
+				break;
+			}
+			
 			if (!interrupted()) {
 				Message message = null;;
 				try {
@@ -53,6 +58,7 @@ public class MessageDispatcher extends Thread {
 			}
 		}
 		
+		System.out.println("2");
 		// Wait to send all message then shutdown the thread pool.
 		executorService.shutdown();
 	}
@@ -73,10 +79,12 @@ public class MessageDispatcher extends Thread {
 		notify();
 	}
 
-	void shutdown(boolean waitForMessagesInTheQueue) {
-		this.sendQueuedUpMessages = waitForMessagesInTheQueue;
+	void shutdown(boolean shutDownImmediately) {
+		this.shutDownImmediately = shutDownImmediately;
 		this.keepRunning = false;
-		interrupt();
+		if (this.messagesQueue.isEmpty()) {
+			interrupt();
+		} 
 	}
 
 	/**

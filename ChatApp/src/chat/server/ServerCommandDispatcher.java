@@ -26,11 +26,11 @@ public class ServerCommandDispatcher extends Thread {
 					printHelpMenu();
 				} else if (line.startsWith("/disconnect")) {
 					String[] args = line.split("\\s+");
-					if (args.length > 1 && args[1].equals("false")) {
-						server.stopServer(false);
+					if (args.length > 1 && args[1].equals("true")) {
+						server.stopServer(true);
 					}
 
-					server.stopServer(true);
+					server.stopServer(false);
 				} else if (line.startsWith("/remove: ")) {
 					String name = line.substring(8).trim();
 					server.disconnectUser(name);
@@ -62,7 +62,7 @@ public class ServerCommandDispatcher extends Thread {
 		System.out.println(
 				"- To stop the server enter a command \"/disconnect\". "
 				+ "If you want to wait all messages currently in the queue to be sent you can "
-				+ "add \"true\" in the command or \"false\" otherwise. "
+				+ "add \"false\" in the command or \"true\" if you want to shut down immediately. "
 				+ "If you don't select it all messages will be waited.");
 		System.out.println("- To disconnect a user enter a command in format: \"/remove: [username]\".");
 		System.out.println("- To see all connected users enter a command \"/listall\".");

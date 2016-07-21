@@ -29,6 +29,11 @@ public class Server {
 	private MessageDispatcher messageDispatcher;
 	private ServerCommandDispatcher serverCommandDispatcher;
 
+	public Server() {
+		clients = new ConcurrentHashMap<>();
+		serverSiderListeners = new ArrayList<>();
+	}
+
 	/**
 	 * Checks in collection with all connected users if there is a user with
 	 * provided user name.
@@ -116,7 +121,6 @@ public class Server {
 				Message shutDownMessage = new Message("disconnect", username, "admin", SystemCode.DISCONNECT);
 				messageDispatcher.addMessageToQueue(shutDownMessage);
 				this.serverSiderListeners.remove(clients.get(username).getListener());
-
 			}
 		}
 
@@ -301,9 +305,6 @@ public class Server {
 		}
 
 		if (isRunning) {
-			// All logged in clients.
-			clients = new ConcurrentHashMap<>();
-			serverSiderListeners = new ArrayList<>();
 			printWelcomeMessage();
 		}
 	}

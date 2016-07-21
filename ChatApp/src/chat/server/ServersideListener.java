@@ -29,15 +29,20 @@ public class ServersideListener extends Thread {
 	}
 
 	/**
-	 * Listens for messages from client and sends them to message center.
+	 * Listens for messages from client and sends them to message dispatcher.
 	 */
 	@Override
 	public void run() {
 		this.keepRunning = true;
 
 		try {
-			inputInner = new InputStreamReader(clientSocket.getInputStream());
-			input = new BufferedReader(inputInner);
+			try {
+				inputInner = new InputStreamReader(clientSocket.getInputStream());
+				input = new BufferedReader(inputInner);
+			} catch (IOException e) {
+				shutdown();
+				keepRunning = false;
+			}
 
 			while (keepRunning) {
 				String messageType = input.readLine();
