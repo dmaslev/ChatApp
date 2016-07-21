@@ -55,7 +55,7 @@ public class ClientMessageSender implements Runnable {
 			try {
 				inputReader.close();
 			} catch (IOException e) {
-				System.out.println("Closing input reader failed.");
+				// Closing input reader failed.
 				e.printStackTrace();
 			}
 		}
@@ -140,25 +140,23 @@ public class ClientMessageSender implements Runnable {
 	 */
 	protected void shutdown() throws IOException {
 		this.isRunning = false;
-		this.inputReader.close();
-
-		try {
-			innerStream.close();
-		} catch (IOException ioException) {
-			throw new IOException("Unable to close inner data stream.", ioException);
-		}
 
 		try {
 			this.output.close();
 		} catch (IOException ioException) {
-			throw new IOException("Unable to close output data stream.", ioException);
+			// Closing the output stream failed. Close the inner stream.
+			innerStream.close();
+			ioException.printStackTrace();
 		}
-
+		
 		try {
 			this.socket.close();
 		} catch (IOException ioException) {
-			throw new IOException("Unable to close client socket.", ioException);
+			// Closing the socket failed.
+			ioException.printStackTrace();
 		}
+		
+		System.exit(0);
 	}
 
 	/**

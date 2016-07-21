@@ -41,6 +41,7 @@ public class ServerCommandDispatcher extends Thread {
 				}
 			}
 		} catch (IOException e) {
+			// Closing server side listeners resources failed.
 			e.printStackTrace();
 		} finally {
 			reader.close();

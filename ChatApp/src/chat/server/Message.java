@@ -15,6 +15,7 @@ public class Message {
 	// Variable used to define different system messages.
 	private String systemCode;
 	private BufferedWriter output;
+	private ServersideListener listener;
 
 	public Message(String text, String recipient, String sender, String systemCode) {
 		this(text, recipient, sender);
@@ -29,7 +30,8 @@ public class Message {
 		this.isSystemMessage = false;
 	}
 
-	public Message(String text, BufferedWriter output, String systemCode) {
+	public Message(ServersideListener listener, String text, BufferedWriter output, String systemCode) {
+		this.listener = listener;
 		this.text = text;
 		this.output = output;
 		this.systemCode = systemCode;
@@ -58,5 +60,9 @@ public class Message {
 
 	public String getSystemCode() {
 		return this.systemCode;
+	}
+	
+	public ServersideListener getListener() {
+		return this.listener;
 	}
 }

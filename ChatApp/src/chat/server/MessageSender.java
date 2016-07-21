@@ -27,14 +27,14 @@ public class MessageSender implements Runnable {
 					// client has been disconnected or output stream was closed.
 					e.printStackTrace();
 				}
-				
+
 				return;
 			}
 
 			try {
 				String text = message.getMessageText();
 				String recipient = message.getRecipient();
-				sendSystemMessageToOneUser(text, recipient);
+				sendSystemMessage(text, recipient);
 			} catch (IOException e) {
 				// Sending message to the client failed. Possible reasons -
 				// client has been disconnected or output stream was closed.
@@ -63,10 +63,15 @@ public class MessageSender implements Runnable {
 			out.write(resultCode);
 			out.newLine();
 			out.flush();
+			if (!resultCode.equals(SystemCode.SUCCESSFUL_LOGIN)) {
+				// Login failed. Shut down the server side listener and close all resources.
+				ServersideListener listener = message.getListener();
+				server.removeListener(listener);
+				listener.shutdown();
+			}
 		} catch (IOException ioException) {
 			throw new IOException("Unable to send the message to client. ", ioException);
 		}
-
 	}
 
 	/**
@@ -87,14 +92,14 @@ public class MessageSender implements Runnable {
 		} else {
 			boolean isUserConnected = server.isUserConnected(recipient);
 			if (isUserConnected) {
-				sendMessagetoOneUser(recipient, messageText, sender);
+				sendMessagtTOneUser(recipient, messageText, sender);
 			} else {
 				String errorMessage = recipient + " is not connected.";
-				sendSystemMessageToOneUser(errorMessage, sender);
+				sendSystemMessage(errorMessage, sender);
 			}
 		}
 
-		sendSystemMessageToOneUser("Enter your message: ", sender);
+		sendSystemMessage("Enter your message: ", sender);
 	}
 
 	/**
@@ -106,21 +111,25 @@ public class MessageSender implements Runnable {
 	 *            Information message for the client.
 	 * @throws IOException
 	 */
-	private void sendSystemMessageToOneUser(String textMessage, String recipient) throws IOException {
+	private void sendSystemMessage(String textMessage, String recipient) throws IOException {
 		try {
 			User user = server.getClients().get(recipient);
 			if (user == null) {
 				return;
 			}
-			
+
 			BufferedWriter out = user.getOutputStream();
 			if (out == null) {
 				return;
 			}
-			
+
 			out.write(textMessage);
 			out.newLine();
 			out.flush();
+
+			// Inform the user that he has been disconnected. Shut down the
+			// listener and remove it from the collection with all listeners.
+			server.stopListener(recipient);
 		} catch (IOException ioException) {
 			throw new IOException("Unable to send the message to " + recipient, ioException);
 		}
@@ -137,14 +146,14 @@ public class MessageSender implements Runnable {
 	 *            Username of sender of the message.
 	 * @throws IOException
 	 */
-	private void sendMessagetoOneUser(String recipient, String messageText, String sender) throws IOException {
+	private void sendMessagtTOneUser(String recipient, String messageText, String sender) throws IOException {
 		Map<String, User> clients = server.getClients();
 		User user = clients.get(recipient);
 
 		// The user is not logged in.
 		if (user == null) {
 			String errorMessage = recipient + " is not connected.";
-			sendSystemMessageToOneUser(errorMessage, recipient);
+			sendSystemMessage(errorMessage, recipient);
 			return;
 		}
 

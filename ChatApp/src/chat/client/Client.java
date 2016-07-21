@@ -113,7 +113,6 @@ public class Client {
 		try {
 			client.initializeClient(args);
 		} catch (IOException ioException) {
-			inputReader.close();
 			throw new IOException(ioException);
 		} catch (RuntimeException runtimeException) {
 			throw new Exception(runtimeException);

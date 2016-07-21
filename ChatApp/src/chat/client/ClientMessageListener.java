@@ -43,10 +43,10 @@ public class ClientMessageListener implements Runnable {
 					isRunning = false;
 				} else if (message.equalsIgnoreCase("disconnect")) {
 					// Server was shutdown or removed the user.
-					messageSender.shutdown();
 					System.out.print("You have been disconnected from server. ");
-
 					isRunning = false;
+					messageSender.shutdown();
+
 				} else {
 					display(message);
 				}
@@ -85,20 +85,23 @@ public class ClientMessageListener implements Runnable {
 		try {
 			listener.close();
 		} catch (IOException ioException) {
-			throw new IOException("BufferedReader.close failed.", ioException);
+			// Closing the input stream failed. Close the inner stream.
+			innerStream.close();
+			ioException.printStackTrace();
 		}
 
 		try {
 			socket.close();
 		} catch (IOException ioException) {
-			throw new IOException("Closing the socket failed.", ioException);
+			// Closing the socket failed.
+			ioException.printStackTrace();
 		}
 
 		try {
 			messageSender.shutdown();
-		} catch (IOException e) {
+		} catch (IOException ioException) {
 			// There is problem with closing ClientMessageSender's resources.
-			throw new IOException(e);
+			ioException.printStackTrace();
 		}
 	}
 

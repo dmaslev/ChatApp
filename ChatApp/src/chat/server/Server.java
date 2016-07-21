@@ -8,6 +8,7 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -23,6 +24,7 @@ public class Server {
 
 	// Collection for all logged in users.
 	private Map<String, User> clients;
+	private ArrayList<ServersideListener> serverSiderListeners;
 
 	private MessageDispatcher messageDispatcher;
 	private ServerCommandDispatcher serverCommandDispatcher;
@@ -75,33 +77,18 @@ public class Server {
 	 *            Message listener of the user.
 	 * @throws IOException
 	 */
-	synchronized boolean addUser(String name, BufferedWriter output, ServersideListener messageListener)
+	synchronized boolean addUser(String name, BufferedWriter output, String address, ServersideListener listener)
 			throws IOException {
 		String resultCode = validateUsername(name);
-		sendMessageToClient(output, resultCode);
+		sendMessageToClient(listener, output, resultCode);
+
 		if (resultCode.equals(SystemCode.SUCCESSFUL_LOGIN)) {
-			String address = messageListener.getSocket().getInetAddress().toString();
-			User user = new User(name, output, address);
+			User user = new User(name, output, address, listener);
 			clients.put(name, user);
-			messageListener.setUsername(name);
 			return true;
 		}
-		
-		return false;
-	}
 
-	/**
-	 * Removes a use from the collection with all connected users.
-	 * 
-	 * @param username
-	 *            Name of the user to be removed.
-	 * @param client
-	 *            Used if the user is connected, but not logged in with username
-	 *            yet.
-	 */
-	synchronized void removeUser(String username) {
-		System.out.println(username + " disconnected.");
-		this.clients.remove(username);
+		return false;
 	}
 
 	/**
@@ -120,13 +107,23 @@ public class Server {
 	 */
 	void stopServer(boolean waitForMessagesInTheQueue) throws IOException {
 		isRunning = false;
+
+		// Inform all clients that the server is shutting down.
 		for (String username : clients.keySet()) {
 			User user = clients.get(username);
 			if (user != null) {
 
 				Message shutDownMessage = new Message("disconnect", username, "admin", SystemCode.DISCONNECT);
 				messageDispatcher.addMessageToQueue(shutDownMessage);
+				this.serverSiderListeners.remove(clients.get(username).getListener());
+
 			}
+		}
+
+		// Stop serversideListeners for all connected but not logged in users.
+		for (ServersideListener serversideListener : serverSiderListeners) {
+			System.out.println(serversideListener.getUsername());
+			serversideListener.shutdown();
 		}
 
 		serverCommandDispatcher.shutdown();
@@ -156,6 +153,31 @@ public class Server {
 			Message shutDownMessage = new Message("disconnect", name, "admin", SystemCode.DISCONNECT);
 			messageDispatcher.addMessageToQueue(shutDownMessage);
 		}
+	}
+
+	void stopListener(String recipient) throws IOException {
+		// Shut down the listener
+		this.clients.get(recipient).getListener().shutdown();
+
+		removeUser(recipient);
+	}
+
+	void removeListener(ServersideListener listener) {
+		this.serverSiderListeners.remove(listener);
+	}
+
+	/**
+	 * Removes a use from the collection with all connected users.
+	 * 
+	 * @param username
+	 *            Name of the user to be removed.
+	 * @param client
+	 *            Used if the user is connected, but not logged in with username
+	 *            yet.
+	 */
+	synchronized void removeUser(String username) {
+		System.out.println(username + " disconnected.");
+		this.clients.remove(username);
 	}
 
 	/**
@@ -230,9 +252,11 @@ public class Server {
 				Socket socket = serverSocket.accept();
 				System.out.println(socket.getInetAddress() + " connected");
 
-				ServersideListener client = new ServersideListener(socket, messageDispatcher, this);
-				client.setOutputStream();
-				client.start();
+				ServersideListener clientListener = new ServersideListener(socket, messageDispatcher, this);
+				clientListener.setOutputStream();
+				clientListener.start();
+
+				serverSiderListeners.add(clientListener);
 			} catch (IOException ioException) {
 				// Server socket was closed while waiting for connections.
 				isRunning = false;
@@ -241,8 +265,8 @@ public class Server {
 		}
 	}
 
-	private synchronized void sendMessageToClient(BufferedWriter output, String resultCode) {
-		Message message = new Message(resultCode, output, SystemCode.REGISTER);
+	private synchronized void sendMessageToClient(ServersideListener name, BufferedWriter output, String resultCode) {
+		Message message = new Message(name, resultCode, output, SystemCode.REGISTER);
 		messageDispatcher.addMessageToQueue(message);
 	}
 
@@ -279,7 +303,7 @@ public class Server {
 		if (isRunning) {
 			// All logged in clients.
 			clients = new ConcurrentHashMap<>();
-
+			serverSiderListeners = new ArrayList<>();
 			printWelcomeMessage();
 		}
 	}
