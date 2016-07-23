@@ -23,7 +23,7 @@ public class MessageDispatcher extends Thread {
 	@Override
 	public void run() {
 		this.keepRunning = true;
-		this.shutDownImmediately = true;
+		this.shutDownImmediately = false;
 		this.messagesQueue = new LinkedList<Message>();
 
 		// If the boolean variable keepRunning is set to false all messages
@@ -34,19 +34,21 @@ public class MessageDispatcher extends Thread {
 				// Server asked to shut down the messageDispatcher immediately.
 				break;
 			}
-			
+
 			if (!interrupted()) {
-				Message message = null;;
+				Message message = null;
+				;
 				try {
 					message = getNextMessageFromQueue();
 				} catch (InterruptedException e) {
-					// getNexMessageFromQueue was interrupted. Server asked to shutdown
+					// getNexMessageFromQueue was interrupted. Server asked to
+					// shutdown
 					e.printStackTrace();
 					continue;
 				}
 
 				MessageSender messageSender = new MessageSender(message, server);
-				
+
 				// What will happen if all threads are busy.
 				// Creates a thread pool that reuses a fixed number of threads
 				// operating off a shared unbounded queue. At any point, at most
@@ -57,8 +59,7 @@ public class MessageDispatcher extends Thread {
 				executorService.execute(messageSender);
 			}
 		}
-		
-		System.out.println("2");
+
 		// Wait to send all message then shutdown the thread pool.
 		executorService.shutdown();
 	}
@@ -70,21 +71,28 @@ public class MessageDispatcher extends Thread {
 	 *            The message to be added.
 	 */
 	public synchronized void addMessageToQueue(Message message) {
-		// If the server force the MessageCenter to stop all messages in the
-		// queue will be sent. Adding new messages in the queue is not allowed.
+		// If the server force the MessageCenter to stop it is not allowed to
+		// add new messages.
 		if (keepRunning) {
 			messagesQueue.add(message);
+			notify();
 		}
 
-		notify();
 	}
 
+	/**
+	 * 
+	 * @param shutDownImmediately
+	 *            If false all messages currently in the queue will be sent. If
+	 *            true the message dispatcher will shut down immediately without
+	 *            sending the messages in the queue.
+	 */
 	void shutdown(boolean shutDownImmediately) {
 		this.shutDownImmediately = shutDownImmediately;
 		this.keepRunning = false;
 		if (this.messagesQueue.isEmpty()) {
 			interrupt();
-		} 
+		}
 	}
 
 	/**
@@ -104,7 +112,7 @@ public class MessageDispatcher extends Thread {
 	/**
 	 * 
 	 * @return First message in the queue.
-	 * @throws InterruptedException 
+	 * @throws InterruptedException
 	 */
 	private synchronized Message getNextMessageFromQueue() throws InterruptedException {
 		while (messagesQueue.size() == 0) {
@@ -115,6 +123,9 @@ public class MessageDispatcher extends Thread {
 		return message;
 	}
 
+	/**
+	 * Initialize the thread pool responsible for sending message to the clients.
+	 */
 	private void initializeExecutor() {
 		int numberOfThread = 10;
 		this.executorService = Executors.newFixedThreadPool(numberOfThread);

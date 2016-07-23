@@ -2,7 +2,6 @@ package chat.server;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.net.BindException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
@@ -24,14 +23,14 @@ public class Server {
 
 	// Collection for all logged in users.
 	private Map<String, User> clients;
-	private ArrayList<ServersideListener> serverSiderListeners;
+	private ArrayList<ServersideListener> serverSideListeners;
 
-	private MessageDispatcher messageDispatcher;
+	private MessageDispatcher fromToClientMsgDispatcher;
 	private ServerCommandDispatcher serverCommandDispatcher;
 
 	public Server() {
 		clients = new ConcurrentHashMap<>();
-		serverSiderListeners = new ArrayList<>();
+		serverSideListeners = new ArrayList<>();
 	}
 
 	/**
@@ -112,30 +111,31 @@ public class Server {
 	 */
 	void stopServer(boolean waitForMessagesInTheQueue) throws IOException {
 		isRunning = false;
-
+		// TODO Synchronization fix
 		// Inform all clients that the server is shutting down.
 		for (String username : clients.keySet()) {
 			User user = clients.get(username);
 			if (user != null) {
 
 				Message shutDownMessage = new Message("disconnect", username, "admin", SystemCode.DISCONNECT);
-				messageDispatcher.addMessageToQueue(shutDownMessage);
-				this.serverSiderListeners.remove(clients.get(username).getListener());
+				fromToClientMsgDispatcher.addMessageToQueue(shutDownMessage);
+				this.serverSideListeners.remove(clients.get(username).getListener());
 			}
 		}
 
 		// Stop serversideListeners for all connected but not logged in users.
-		for (ServersideListener serversideListener : serverSiderListeners) {
+		for (ServersideListener serversideListener : serverSideListeners) {
 			System.out.println(serversideListener.getUsername());
 			serversideListener.shutdown();
 		}
 
 		serverCommandDispatcher.shutdown();
-		messageDispatcher.shutdown(waitForMessagesInTheQueue);
+		fromToClientMsgDispatcher.shutdown(waitForMessagesInTheQueue);
 		try {
 			serverSocket.close();
 		} catch (IOException ioException) {
 			// The socket is already closed.
+			// TODO add message /address, port/
 			throw new IOException(ioException);
 		}
 
@@ -149,25 +149,24 @@ public class Server {
 	 * @param name
 	 *            The name of the user to be disconnected.
 	 */
-	void disconnectUser(String name) {
+	synchronized void disconnectUser(String name) {
 		User user = clients.get(name);
 		if (user == null) {
 			System.out.println(name + " is not connected.");
 		} else {
 			Message shutDownMessage = new Message("disconnect", name, "admin", SystemCode.DISCONNECT);
-			messageDispatcher.addMessageToQueue(shutDownMessage);
+			fromToClientMsgDispatcher.addMessageToQueue(shutDownMessage);
 		}
 	}
 
-	void stopListener(String recipient) throws IOException {
+	synchronized void stopListener(String recipient) throws IOException {
 		// Shut down the listener
-		this.clients.get(recipient).getListener().shutdown();
-
 		removeUser(recipient);
+		this.clients.get(recipient).getListener().shutdown();
 	}
 
-	void removeListener(ServersideListener listener) {
-		this.serverSiderListeners.remove(listener);
+	synchronized void removeListener(ServersideListener listener) {
+		this.serverSideListeners.remove(listener);
 	}
 
 	/**
@@ -195,13 +194,14 @@ public class Server {
 	private void startServer(String[] args) throws IOException {
 		isRunning = true;
 		try {
+			// TODO initializeServer return boolean.
 			initializeServer(args);
 
 			if (isRunning) {
-				messageDispatcher = new MessageDispatcher(this);
-				messageDispatcher.start();
 				serverCommandDispatcher = new ServerCommandDispatcher(this);
 				serverCommandDispatcher.start();
+				fromToClientMsgDispatcher = new MessageDispatcher(this);
+				fromToClientMsgDispatcher.start();
 
 				waitForConnections();
 			}
@@ -236,7 +236,7 @@ public class Server {
 		return resultCode;
 	}
 
-	private void printWelcomeMessage() {
+	private void printWelcomeMessage() throws IOException {
 		try {
 			InetAddress serverAdress = InetAddress.getLocalHost();
 			int port = serverSocket.getLocalPort();
@@ -246,7 +246,7 @@ public class Server {
 			System.out.println("Enter \"/help\" to see the help menu.");
 		} catch (UnknownHostException unknownHostException) {
 			// Unable to read local address.
-			throw new UncheckedIOException(new IOException(unknownHostException));
+			throw new IOException(unknownHostException);
 		}
 	}
 
@@ -256,11 +256,18 @@ public class Server {
 				Socket socket = serverSocket.accept();
 				System.out.println(socket.getInetAddress() + " connected");
 
-				ServersideListener clientListener = new ServersideListener(socket, messageDispatcher, this);
-				clientListener.setOutputStream();
+				ServersideListener clientListener = new ServersideListener(socket, fromToClientMsgDispatcher, this);
+				
+				try {
+					// TODO move to start()
+					clientListener.openOutputStream();
+				} catch (IOException e) {
+					// Opening output stream for the client failed.
+					e.printStackTrace();
+				}
+				
 				clientListener.start();
-
-				serverSiderListeners.add(clientListener);
+				serverSideListeners.add(clientListener);
 			} catch (IOException ioException) {
 				// Server socket was closed while waiting for connections.
 				isRunning = false;
@@ -271,7 +278,7 @@ public class Server {
 
 	private synchronized void sendMessageToClient(ServersideListener name, BufferedWriter output, String resultCode) {
 		Message message = new Message(name, resultCode, output, SystemCode.REGISTER);
-		messageDispatcher.addMessageToQueue(message);
+		fromToClientMsgDispatcher.addMessageToQueue(message);
 	}
 
 	private void initializeServer(String[] args) throws IOException, IllegalArgumentException {
@@ -304,11 +311,9 @@ public class Server {
 			throw new IOException("Port " + port + " is already in use.", bindException);
 		}
 
-		if (isRunning) {
-			printWelcomeMessage();
-		}
+		printWelcomeMessage();
 	}
-
+	
 	public static void main(String[] args) throws IOException {
 		Server server = new Server();
 		server.startServer(args);

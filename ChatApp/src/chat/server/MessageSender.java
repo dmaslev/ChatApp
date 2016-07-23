@@ -41,9 +41,6 @@ public class MessageSender implements Runnable {
 				e.printStackTrace();
 			}
 
-			if (message.getSystemCode().equals(SystemCode.LOGOUT)) {
-				server.removeUser(message.getRecipient());
-			}
 		} else {
 			try {
 				sendMessage(message);

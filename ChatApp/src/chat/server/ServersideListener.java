@@ -40,8 +40,10 @@ public class ServersideListener extends Thread {
 				inputInner = new InputStreamReader(clientSocket.getInputStream());
 				input = new BufferedReader(inputInner);
 			} catch (IOException e) {
+				// Failed to open input stream.
 				shutdown();
 				keepRunning = false;
+				e.printStackTrace();
 			}
 
 			while (keepRunning) {
@@ -85,23 +87,32 @@ public class ServersideListener extends Thread {
 		return this.clientSocket;
 	}
 
-	public void setOutputStream() throws IOException {
-		outputInner = new OutputStreamWriter(this.clientSocket.getOutputStream());
-		this.output = new BufferedWriter(outputInner);
+	public void openOutputStream() throws IOException  {
+		try {
+			outputInner = new OutputStreamWriter(this.clientSocket.getOutputStream());
+			this.output = new BufferedWriter(outputInner);
+		} catch (IOException e) {
+			shutdown();
+			throw new IOException("Opening output stream failed.", e);
+		}
 	}
 
 	public String getUsername() {
 		return this.username;
 	}
 
-	void shutdown() throws IOException {
+	void shutdown()  {
 		this.keepRunning = false;
 
 		try {
 			input.close();
 		} catch (IOException e) {
 			// Closing the input stream failed. Close the inner stream.
-			inputInner.close();
+			try {
+				inputInner.close();
+			} catch (IOException e1) {
+				e1.printStackTrace();
+			}
 			e.printStackTrace();
 		}
 
@@ -109,7 +120,11 @@ public class ServersideListener extends Thread {
 			output.close();
 		} catch (IOException e) {
 			// Closing the output stream failed. Close the inner stream.
-			outputInner.close();
+			try {
+				outputInner.close();
+			} catch (IOException e1) {
+				e1.printStackTrace();
+			}
 			e.printStackTrace();
 		}
 
