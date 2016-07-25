@@ -1,7 +1,5 @@
 package chat.server;
 
-import java.io.BufferedWriter;
-
 public class Message {
 
 	private String text;
@@ -14,8 +12,6 @@ public class Message {
 	
 	// Variable used to define different system messages.
 	private String systemCode;
-	private BufferedWriter output;
-	private ServersideListener listener;
 
 	public Message(String text, String recipient, String sender, String systemCode) {
 		this(text, recipient, sender);
@@ -28,14 +24,6 @@ public class Message {
 		this.recipient = recipient;
 		this.sender = sender;
 		this.isSystemMessage = false;
-	}
-
-	public Message(ServersideListener listener, String text, BufferedWriter output, String systemCode) {
-		this.listener = listener;
-		this.text = text;
-		this.output = output;
-		this.systemCode = systemCode;
-		this.isSystemMessage = true;
 	}
 
 	public boolean getIsSystemMessage() {
@@ -53,16 +41,8 @@ public class Message {
 	public String getSender() {
 		return this.sender;
 	}
-	
-	public BufferedWriter getOutput() {
-		return this.output;
-	}
 
 	public String getSystemCode() {
 		return this.systemCode;
-	}
-	
-	public ServersideListener getListener() {
-		return this.listener;
 	}
 }

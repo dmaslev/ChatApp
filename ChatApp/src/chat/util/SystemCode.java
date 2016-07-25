@@ -1,4 +1,4 @@
-package chat.constants;
+package chat.util;
 
 public class SystemCode {
 	

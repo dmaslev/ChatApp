@@ -32,7 +32,7 @@ public class Client {
 				throw new RuntimeException(interruptedException);
 			}
 		} catch (IllegalArgumentException illegalArgumentException) {
-			illegalArgumentException.printStackTrace();
+			throw new IllegalArgumentException(illegalArgumentException);
 		}
 	}
 
@@ -58,8 +58,7 @@ public class Client {
 			listenerThread.start();
 			listenerThread.join();
 		}  catch (IOException ioException) {
-			System.out.println("Unable to connect to " + serverAddress + " on port " + port);
-			throw new IOException(ioException);
+			throw new IOException("Unable to connect to " + serverAddress + " on port " + port, ioException);
 		} 
 	}
 
@@ -84,7 +83,7 @@ public class Client {
 					port = Integer.parseInt(args[1]);
 					// Check if the provided number is valid port number.
 					if (port < 1 || port > 65535) {
-						throw new IllegalArgumentException("Invalid port number");
+						throw new IllegalArgumentException(port + " is not valid port number.");
 					}
 				} catch (NumberFormatException numberFormatException) {
 					throw new IllegalArgumentException(args[1] + " is not valid number. ", numberFormatException);
@@ -108,14 +107,14 @@ public class Client {
 		}
 	}
 
-	public static void main(String[] args) throws Exception {
+	public static void main(String[] args) throws IOException  {
 		Client client = new Client();
 		try {
 			client.initializeClient(args);
 		} catch (IOException ioException) {
-			throw new IOException(ioException);
-		} catch (RuntimeException runtimeException) {
-			throw new Exception(runtimeException);
+			throw new IOException("Error occured while opening socket or client sender/listener.", ioException);
+		} catch (IllegalArgumentException runtimeException) {
+			throw new RuntimeException("Invalid input parameters provided.", runtimeException);
 		}
 	}
 }

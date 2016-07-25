@@ -6,7 +6,8 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.net.Socket;
 
-import chat.constants.SystemCode;
+import chat.util.Logger;
+import chat.util.SystemCode;
 
 public class ClientMessageSender implements Runnable {
 
@@ -46,17 +47,20 @@ public class ClientMessageSender implements Runnable {
 					String receiver = inputReader.readLine();
 
 					sendMessage(SystemCode.REGULAR_MESSAGE, message, receiver);
+					if (!receiver.equals(username)) {
+						System.out.println("Enter your message: ");
+					}
 				}
 			}
 		} catch (IOException ioException) {
 			isRunning = false;
-			ioException.printStackTrace();
+			System.err.println("Lost connection with server. " + Logger.printError(ioException));
 		} finally {
 			try {
 				inputReader.close();
 			} catch (IOException e) {
 				// Closing input reader failed.
-				e.printStackTrace();
+				System.err.println("Error occured while closing the input reader." + Logger.printError(e));
 			}
 		}
 	}

@@ -5,7 +5,8 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.Socket;
 
-import chat.constants.SystemCode;
+import chat.util.Logger;
+import chat.util.SystemCode;
 
 public class ClientMessageListener implements Runnable {
 
@@ -53,14 +54,13 @@ public class ClientMessageListener implements Runnable {
 			}
 		} catch (IOException ioException) {
 			// Unexpected connection lost.
-			System.out.print("Lost connection with server. ");
 			isRunning = false;
-			ioException.printStackTrace();
+			System.err.print("Lost connection with server. " + Logger.printError(ioException));
 		} finally {
 			try {
 				closeResources();
 			} catch (IOException e) {
-				e.printStackTrace();
+				System.err.print("Error occured while closing resources." + Logger.printError(e));
 			}
 		}
 	}
@@ -129,6 +129,7 @@ public class ClientMessageListener implements Runnable {
 
 			// Looping until a message for successful login is received.
 			while (!result.equals(SystemCode.SUCCESSFUL_LOGIN)) {
+				// TODO reconnect
 				messageSender.sendUsernameForValidation();
 				result = listener.readLine();
 				displayConvertResultCodeToMessage(result);
@@ -181,5 +182,6 @@ public class ClientMessageListener implements Runnable {
 	 */
 	private void display(String message) {
 		System.out.println(message);
+		System.out.println("Enter your message: ");
 	}
 }

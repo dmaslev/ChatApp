@@ -24,13 +24,8 @@ public class ServerCommandDispatcher extends Thread {
 				String line = reader.nextLine();
 				if (line.equalsIgnoreCase("/help")) {
 					printHelpMenu();
-				} else if (line.startsWith("/disconnect")) {
-					String[] args = line.split("\\s+");
-					if (args.length > 1 && args[1].equals("true")) {
-						server.stopServer(true);
-					}
-
-					server.stopServer(false);
+				} else if (line.equalsIgnoreCase("/disconnect")) {
+					server.stopServer();
 				} else if (line.startsWith("/remove: ")) {
 					String name = line.substring(8).trim();
 					server.disconnectUser(name);
