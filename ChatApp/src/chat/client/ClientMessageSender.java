@@ -142,22 +142,25 @@ public class ClientMessageSender implements Runnable {
 	 * 
 	 * @throws IOException
 	 */
-	protected void shutdown() throws IOException {
+	protected void shutdown() {
 		this.isRunning = false;
 
 		try {
 			this.output.close();
 		} catch (IOException ioException) {
-			// Closing the output stream failed. Close the inner stream.
-			innerStream.close();
-			ioException.printStackTrace();
+			System.err.println("Closing the output stream failed. Close the inner stream." + Logger.printError(ioException));
+			
+			try {
+				innerStream.close();
+			} catch (IOException e) {
+				System.err.println("Closing the inner output stream failed. " + Logger.printError(ioException));
+			}
 		}
 		
 		try {
 			this.socket.close();
 		} catch (IOException ioException) {
-			// Closing the socket failed.
-			ioException.printStackTrace();
+			System.err.println("Closing the socket failed. " + Logger.printError(ioException));
 		}
 		
 		System.exit(0);

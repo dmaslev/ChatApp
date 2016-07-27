@@ -7,7 +7,9 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
@@ -25,6 +27,8 @@ public class Server {
 	// Hash map with all logged in user user for faster searching when sending
 	// message to single user.
 	private Map<String, ServersideListener> clients;
+	private HashMap<String, ServersideListener> copyClients;
+	private Date lastCopyClients;
 
 	private MessageDispatcher messageDispatcher;
 	private ServerCommandDispatcher serverCommandDispatcher;
@@ -79,12 +83,14 @@ public class Server {
 	 * @param messageListener
 	 *            Message listener of the user.
 	 */
-	synchronized void addUser(String name, ServersideListener listener) {
-		// TODO sync
+	synchronized String addUser(String name, ServersideListener listener) {
 		if (clients.containsKey(name)) {
-			// There is client with the same name already logged in.
+			// The given name is already in user
+			return "1";
 		}
+
 		clients.put(name, listener);
+		return "0";
 	}
 
 	/**
@@ -95,6 +101,28 @@ public class Server {
 		return this.clients;
 	}
 
+	 HashMap<String, ServersideListener> getCopyOfClients() {
+		 synchronized (clients) {
+			 if (copyClients == null) {
+					copyClients = new HashMap<>(clients);
+					this.lastCopyClients = new Date();
+					return copyClients;
+				}
+				
+				Date currentMomment = new Date();
+				// 300000 = 300 seconds = 5 minutes.
+				long intervalBetweenCopyClients = 300000;
+				if (currentMomment.getTime() - lastCopyClients.getTime() < intervalBetweenCopyClients) {
+					// Last coping clients was less than 5 minutes ago so there is no need to copy it.
+					return copyClients;
+				}
+				
+				copyClients = new HashMap<>(clients);
+				lastCopyClients = new Date();
+				return copyClients;
+		}
+	}
+
 	/**
 	 * Stops waiting for new connections. Calls disconnect method on all
 	 * connected users and closes the server socket.
@@ -103,17 +131,27 @@ public class Server {
 	 */
 	void stopServer() throws IOException {
 		isRunning = false;
-		// TODO Synchronization fix.
 
-		for (ServersideListener serversideListener : serverSideListeners) {
+		synchronized (serverSideListeners) {
+			Iterator<ServersideListener> iterator = serverSideListeners.iterator();
 
-			String username = serversideListener.getUsername();
-			if (username != null) {
-				disconnectUser(serversideListener);
-				continue;
+			while (iterator.hasNext()) {
+				ServersideListener serversideListener = iterator.next();
+
+				String username = serversideListener.getUsername();
+				if (username != null) {
+					// The user is logged in. The username can be used to send
+					// disconnect message.
+					disconnectUser(serversideListener);
+					clients.remove(username);
+					continue;
+				}
+
+				// The user is not logged in. Disconnect message can be sent
+				// using the output stream stored in the listener.
+				serversideListener.shutdown();
+				iterator.remove();
 			}
-
-			serversideListener.shutdown();
 		}
 
 		serverCommandDispatcher.shutdown();
@@ -165,15 +203,17 @@ public class Server {
 	 */
 	synchronized void stopListener(String username) {
 		// Shut down the listener
-		ServersideListener client = this.clients.get(username);
-		if (client == null) {
+		ServersideListener listener = this.clients.get(username);
+		if (listener == null) {
 			return;
 		}
 
-		client.closeRecourses();
-		this.clients.remove(username);
-		this.serverSideListeners.remove(client);
-		System.out.println(username + " disconnected.");
+		listener.closeRecourses();
+	}
+
+	synchronized void removeListener(ServersideListener listener) {
+		this.clients.remove(listener.getUsername());
+		this.serverSideListeners.remove(listener);
 	}
 
 	/**
@@ -214,7 +254,6 @@ public class Server {
 	 * @return
 	 */
 	String validateUsername(String name) {
-		// TODO sync
 		String resultCode;
 		if (!Character.isAlphabetic(name.charAt(0))) {
 			resultCode = "4";
@@ -249,10 +288,16 @@ public class Server {
 		while (isRunning) {
 			try {
 				Socket socket = serverSocket.accept();
+				if (!isRunning) {
+					socket.close();
+					// The server is disconnection. No more connections are
+					// being accepted.
+					return;
+				}
+
 				System.out.println(socket.getInetAddress() + " connected");
 
 				ServersideListener clientListener = new ServersideListener(socket, messageDispatcher, this);
-
 				clientListener.start();
 				serverSideListeners.add(clientListener);
 			} catch (IOException ioException) {

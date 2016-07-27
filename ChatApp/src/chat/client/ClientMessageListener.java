@@ -85,24 +85,23 @@ public class ClientMessageListener implements Runnable {
 		try {
 			listener.close();
 		} catch (IOException ioException) {
-			// Closing the input stream failed. Close the inner stream.
-			innerStream.close();
-			ioException.printStackTrace();
+			System.err.println(
+					"Closing the input stream failed. Close the inner stream." + Logger.printError(ioException));
+
+			try {
+				innerStream.close();
+			} catch (IOException e) {
+				System.err.println("Closing the innter input stream failed. " + Logger.printError(e));
+			}
 		}
 
 		try {
 			socket.close();
 		} catch (IOException ioException) {
-			// Closing the socket failed.
-			ioException.printStackTrace();
+			System.err.println("Closing the socket failed. " + Logger.printError(ioException));
 		}
 
-		try {
-			messageSender.shutdown();
-		} catch (IOException ioException) {
-			// There is problem with closing ClientMessageSender's resources.
-			ioException.printStackTrace();
-		}
+		messageSender.shutdown();
 	}
 
 	/**

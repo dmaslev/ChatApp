@@ -40,7 +40,7 @@ public class MessageDispatcher {
 	 *            sending the messages in the queue.
 	 */
 	void shutdown() {
-		// Set keepRunning to false so it is not possible to add mroe messages in the queue.
+		// Set keepRunning to false so it is not possible to add more messages in the queue.
 		this.keepRunning = false;
 		this.executorService.shutdown();
 	}

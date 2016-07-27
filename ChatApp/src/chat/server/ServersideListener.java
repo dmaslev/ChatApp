@@ -7,6 +7,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.Socket;
 import java.util.Date;
+import java.util.HashMap;
 
 import chat.util.Logger;
 import chat.util.SystemCode;
@@ -69,7 +70,14 @@ public class ServersideListener extends Thread {
 				}
 
 				if (messageType.equals(SystemCode.REGISTER)) {
+					// First check if the given username is available.
 					String resultCode = messageServer.validateUsername(textReceived);
+					// Second check to ensure that no other user logged in with
+					// the same username between last check and the time current
+					// user is logged in.
+					resultCode = messageServer.addUser(textReceived, this);
+
+					sendMessageToClient(resultCode);
 
 					if (!resultCode.equals(SystemCode.SUCCESSFUL_LOGIN)) {
 						keepRunning = false;
@@ -77,26 +85,24 @@ public class ServersideListener extends Thread {
 					}
 
 					setUsername(textReceived);
-					messageServer.addUser(textReceived, this);
-					sendMessageToClient(resultCode);
 				} else if (messageType.equals(SystemCode.LOGOUT)) {
 					keepRunning = false;
 					messageServer.disconnectUser(this);
 				} else if (messageType.equals(SystemCode.REGULAR_MESSAGE)) {
 					String recipient = input.readLine();
-					Message message = new Message(textReceived, recipient, username);
-					boolean messageSent = messageDispatcher.addMessageToQueue(message);
-					if (!messageSent) {
-						// MessageDispatcher has been shut down. Unable to send
-						// the message.
-						String text = "Failed to send your message: \"" + textReceived + "\" to: " + recipient;
-						sendMessageToClient(text);
+
+					if (recipient.equals("/all")) {
+						sendMessageToAllUsers(textReceived, recipient);
+						continue;
 					}
+
+					sendMessageToOneClientClient(textReceived, recipient, username);
 				}
 			}
 		} catch (IOException ioException) {
 			// Connection lost
 			messageServer.stopListener(username);
+			messageServer.removeListener(this);
 			keepRunning = false;
 			closeRecourses();
 			System.err.println("Error occured in ServersideListener." + Logger.printError(ioException));
@@ -129,53 +135,35 @@ public class ServersideListener extends Thread {
 		try {
 			input.close();
 		} catch (IOException e) {
-			System.err.println("Unable to close outer input stream for user: " + 
-					username + 
-					", address: " + 
-					address	+ 
-					", port: " + 
-					port + Logger.printError(e));
+			System.err.println("Unable to close outer input stream for user: " + username + ", address: " + address
+					+ ", port: " + port + Logger.printError(e));
 			try {
 				inputInner.close();
 			} catch (IOException e1) {
-				System.err.println("Unable to close inner input stream for user: " + 
-						username + 
-						", address: " + 
-						address	+ 
-						", port: " + 
-						port + Logger.printError(e1));
+				System.err.println("Unable to close inner input stream for user: " + username + ", address: " + address
+						+ ", port: " + port + Logger.printError(e1));
 			}
 		}
 
 		try {
 			output.close();
 		} catch (IOException e) {
-			System.err.println("Unable to close outer output stream for user: " + 
-					username + 
-					", address: " + 
-					address	+ 
-					", port: " + 
-					port + Logger.printError(e));
+			System.err.println("Unable to close outer output stream for user: " + username + ", address: " + address
+					+ ", port: " + port + Logger.printError(e));
 
 			try {
 				outputInner.close();
 			} catch (IOException e1) {
-				System.err.println("Unable to close inner output stream for user: " + 
-						username + 
-						", address: " + 
-						address	+ 
-						", port: " + 
-						port + Logger.printError(e1));
+				System.err.println("Unable to close inner output stream for user: " + username + ", address: " + address
+						+ ", port: " + port + Logger.printError(e1));
 			}
 		}
 
 		try {
 			clientSocket.close();
 		} catch (IOException e) {
-			System.err.println("Unable to close client socket (address: " + 
-					address	+ 
-					", port: " + 
-					port + Logger.printError(e));
+			System.err.println(
+					"Unable to close client socket (address: " + address + ", port: " + port + Logger.printError(e));
 		}
 	}
 
@@ -196,6 +184,36 @@ public class ServersideListener extends Thread {
 		} catch (IOException ioException) {
 			throw new IOException("Can not send message to " + this.clientSocket.getInetAddress().toString(),
 					ioException);
+		}
+	}
+
+	private void sendMessageToAllUsers(String textReceived, String recipient) throws IOException {
+		HashMap<String, ServersideListener> copyOfAllClients = messageServer.getCopyOfClients();
+		for (String client : copyOfAllClients.keySet()) {
+			if (client.equals(username)) {
+				// Skip sending the message to the sender.
+				continue;
+			}
+
+			Message message = new Message(textReceived, client, username);
+			boolean messageSent = messageDispatcher.addMessageToQueue(message);
+			if (!messageSent) {
+				// MessageDispatcher has been shut down. Unable to send
+				// the message.
+				String text = "Failed to send your message: \"" + textReceived + "\" to: " + recipient;
+				sendMessageToOneClientClient(text, username, "admin");
+			}
+		}
+	}
+
+	private void sendMessageToOneClientClient(String textReceived, String recipient, String sender) {
+		Message message = new Message(textReceived, recipient, sender);
+		boolean messageSent = messageDispatcher.addMessageToQueue(message);
+		if (!messageSent) {
+			// MessageDispatcher has been shut down. Unable to send
+			// the message.
+			String text = "Failed to send your message: \"" + textReceived + "\" to: " + recipient;
+			sendMessageToOneClientClient(text, username, "admin");
 		}
 	}
 }
