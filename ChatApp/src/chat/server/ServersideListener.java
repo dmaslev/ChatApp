@@ -7,7 +7,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.Socket;
 import java.util.Date;
-import java.util.HashMap;
+import java.util.Map;
 
 import chat.util.Logger;
 import chat.util.SystemCode;
@@ -65,7 +65,7 @@ public class ServersideListener extends Thread {
 				if (messageType == null || textReceived == null) {
 					// Client socket was closed.
 					closeRecourses();
-					messageServer.stopListener(username);
+					messageServer.removeListener(this);
 					return;
 				}
 
@@ -80,6 +80,8 @@ public class ServersideListener extends Thread {
 					sendMessageToClient(resultCode);
 
 					if (!resultCode.equals(SystemCode.SUCCESSFUL_LOGIN)) {
+						closeRecourses();
+						messageServer.removeListener(this);
 						keepRunning = false;
 						return;
 					}
@@ -87,7 +89,7 @@ public class ServersideListener extends Thread {
 					setUsername(textReceived);
 				} else if (messageType.equals(SystemCode.LOGOUT)) {
 					keepRunning = false;
-					messageServer.disconnectUser(this);
+					messageServer.disconnectUser(username);
 				} else if (messageType.equals(SystemCode.REGULAR_MESSAGE)) {
 					String recipient = input.readLine();
 
@@ -101,7 +103,6 @@ public class ServersideListener extends Thread {
 			}
 		} catch (IOException ioException) {
 			// Connection lost
-			messageServer.stopListener(username);
 			messageServer.removeListener(this);
 			keepRunning = false;
 			closeRecourses();
@@ -188,7 +189,7 @@ public class ServersideListener extends Thread {
 	}
 
 	private void sendMessageToAllUsers(String textReceived, String recipient) throws IOException {
-		HashMap<String, ServersideListener> copyOfAllClients = messageServer.getCopyOfClients();
+		Map<String, ServersideListener> copyOfAllClients = messageServer.getCopyOfClients();
 		for (String client : copyOfAllClients.keySet()) {
 			if (client.equals(username)) {
 				// Skip sending the message to the sender.

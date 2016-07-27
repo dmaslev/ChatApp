@@ -29,7 +29,6 @@ public class ClientMessageListener implements Runnable {
 		try {
 			if (!registerUser()) {
 				// Error was occurred during registration the user.
-				isRunning = false;
 				return;
 			}
 
@@ -81,7 +80,7 @@ public class ClientMessageListener implements Runnable {
 		}
 	}
 
-	protected void closeResources() throws IOException {
+	void closeResources() throws IOException {
 		try {
 			listener.close();
 		} catch (IOException ioException) {
@@ -117,7 +116,7 @@ public class ClientMessageListener implements Runnable {
 			// server.
 			messageSender.sendUsernameForValidation();
 		} catch (IOException ex) {
-			throw new IOException(ex);
+			throw new IOException("Unable to send message to server.", ex);
 		}
 
 		try {
@@ -128,13 +127,19 @@ public class ClientMessageListener implements Runnable {
 
 			// Looping until a message for successful login is received.
 			while (!result.equals(SystemCode.SUCCESSFUL_LOGIN)) {
-				// TODO reconnect
+				// Previous try to log in failed. The server has closed the socket so new one must be opened.
+				this.socket = messageSender.reconnect();
+				init();
+				
 				messageSender.sendUsernameForValidation();
 				result = listener.readLine();
 				displayConvertResultCodeToMessage(result);
 			}
 		} catch (IOException ioException) {
-			throw new IOException(ioException);
+			throw new IOException(
+					"Error occured while registering the user. Possible reasons - "
+					+ "sending the message to server, opening the socket or data input/ouput stream failed.",
+					ioException);
 		}
 
 		return true;

@@ -97,7 +97,7 @@ public class ClientMessageSender implements Runnable {
 	 * @throws IOException
 	 *             If connection error occurs during sending the message.
 	 */
-	protected void sendMessage(String systemCode, String message, String recipient) throws IOException {
+	void sendMessage(String systemCode, String message, String recipient) throws IOException {
 		output.write(systemCode);
 		output.newLine();
 		output.write(message);
@@ -108,6 +108,24 @@ public class ClientMessageSender implements Runnable {
 	}
 
 	/**
+	 * Opens new socket, input stream and returns the socket.
+	 * @return The new opened socket
+	 * @throws IOException Opening the socket or opening the data streams fails.
+	 */
+	Socket reconnect() throws IOException {
+		System.out.println("You have been disconnected. If you want to reconnect please enter host address/ip adress of server/: ");
+		try {
+			String serverAddress = inputReader.readLine();
+			socket = new Socket(serverAddress, socket.getPort());
+ 		} catch (IOException e) {
+ 			throw new IOException("Error occured while reading from console.", e);
+		}
+		
+		init();
+		return this.socket;
+	}
+
+	/**
 	 * Reads a username in String format and validates it. If the validation
 	 * fails recursively calls the method until the validation is passed.
 	 * 
@@ -115,7 +133,7 @@ public class ClientMessageSender implements Runnable {
 	 *            BufferedReader for reading the input
 	 * @throws IOException
 	 */
-	protected void sendUsernameForValidation() throws IOException {
+	void sendUsernameForValidation() throws IOException {
 		System.out.print("Enter your username: ");
 		try {
 			username = inputReader.readLine();
@@ -132,7 +150,7 @@ public class ClientMessageSender implements Runnable {
 		}
 	}
 
-	protected void setUsername(String name) {
+	void setUsername(String name) {
 		this.username = name;
 	}
 
@@ -142,7 +160,7 @@ public class ClientMessageSender implements Runnable {
 	 * 
 	 * @throws IOException
 	 */
-	protected void shutdown() {
+	void shutdown() {
 		this.isRunning = false;
 
 		try {

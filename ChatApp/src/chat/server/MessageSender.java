@@ -50,13 +50,7 @@ public class MessageSender implements Runnable {
 		String recipient = message.getRecipient();
 
 		try {
-			boolean isUserConnected = server.isUserConnected(recipient);
-			if (isUserConnected) {
-				sendMessageToOneUser(recipient, messageText, sender);
-			} else {
-				String errorMessage = recipient + " is not connected.";
-				sendSystemMessage(errorMessage, sender);
-			}
+			sendMessageToOneUser(recipient, messageText, sender);
 		} catch (IOException e) {
 			throw new IOException("Error occured while sending message to client.", e);
 		}
@@ -132,7 +126,8 @@ public class MessageSender implements Runnable {
 			out.newLine();
 			out.flush();
 		} catch (IOException ioException) {
-			// Send message back to the sender to inform that the message was not sent.
+			// Send message back to the sender to inform that the message was
+			// not sent.
 			String text = "Failed to send message to: " + recipient;
 			sendMessageToOneUser(sender, text, "admin");
 			throw new IOException("Unable to send the message to " + recipient, ioException);

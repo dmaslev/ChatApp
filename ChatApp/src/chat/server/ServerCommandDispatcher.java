@@ -3,6 +3,8 @@ package chat.server;
 import java.io.IOException;
 import java.util.Scanner;
 
+import chat.util.Logger;
+
 public class ServerCommandDispatcher extends Thread {
 
 	private Server server;
@@ -37,7 +39,7 @@ public class ServerCommandDispatcher extends Thread {
 			}
 		} catch (IOException e) {
 			// Closing server side listeners resources failed.
-			e.printStackTrace();
+			System.err.println("Closing server side listeners resources failed." + Logger.printError(e));
 		} finally {
 			reader.close();
 		}

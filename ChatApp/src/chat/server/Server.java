@@ -7,12 +7,14 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 
+import chat.util.Logger;
 import chat.util.SystemCode;
 
 public class Server {
@@ -27,32 +29,15 @@ public class Server {
 	// Hash map with all logged in user user for faster searching when sending
 	// message to single user.
 	private Map<String, ServersideListener> clients;
-	private HashMap<String, ServersideListener> copyClients;
-	private Date lastCopyClients;
+	private Map<String, ServersideListener> copyClients;
 
 	private MessageDispatcher messageDispatcher;
 	private ServerCommandDispatcher serverCommandDispatcher;
 
 	public Server() {
 		clients = new HashMap<>();
+		copyClients = new HashMap<>();
 		serverSideListeners = new ArrayList<>();
-	}
-
-	/**
-	 * Checks in collection with all connected users if there is a user with
-	 * provided user name.
-	 * 
-	 * @param username
-	 * @return Returns true if the user is found in the collection with all
-	 *         connected users and false otherwise.
-	 */
-	synchronized boolean isUserConnected(String username) {
-		ServersideListener client = clients.get(username);
-		if (client == null) {
-			return false;
-		}
-
-		return true;
 	}
 
 	/**
@@ -94,33 +79,12 @@ public class Server {
 	}
 
 	/**
+	 * Returns copy of the original collection with all connected users.
 	 * 
-	 * @return Returns the collection of all connected users.
+	 * @return Copy of the collection with all currently connected users.
 	 */
-	Map<String, ServersideListener> getClients() {
-		return this.clients;
-	}
-
-	 HashMap<String, ServersideListener> getCopyOfClients() {
-		 synchronized (clients) {
-			 if (copyClients == null) {
-					copyClients = new HashMap<>(clients);
-					this.lastCopyClients = new Date();
-					return copyClients;
-				}
-				
-				Date currentMomment = new Date();
-				// 300000 = 300 seconds = 5 minutes.
-				long intervalBetweenCopyClients = 300000;
-				if (currentMomment.getTime() - lastCopyClients.getTime() < intervalBetweenCopyClients) {
-					// Last coping clients was less than 5 minutes ago so there is no need to copy it.
-					return copyClients;
-				}
-				
-				copyClients = new HashMap<>(clients);
-				lastCopyClients = new Date();
-				return copyClients;
-		}
+	Map<String, ServersideListener> getCopyOfClients() {
+		return copyClients;
 	}
 
 	/**
@@ -131,6 +95,16 @@ public class Server {
 	 */
 	void stopServer() throws IOException {
 		isRunning = false;
+		try {
+			serverSocket.close();
+		} catch (IOException ioException) {
+			// Expected exception. Any thread currently blocked in accept() will
+			// throw a SocketException.
+			String address = serverSocket.getInetAddress().toString();
+			int port = serverSocket.getLocalPort();
+			System.err.println("Server socket on address: " + address + ", port: " + port + " was closed."
+					+ Logger.printError(ioException));
+		}
 
 		synchronized (serverSideListeners) {
 			Iterator<ServersideListener> iterator = serverSideListeners.iterator();
@@ -142,7 +116,7 @@ public class Server {
 				if (username != null) {
 					// The user is logged in. The username can be used to send
 					// disconnect message.
-					disconnectUser(serversideListener);
+					disconnectUser(username);
 					clients.remove(username);
 					continue;
 				}
@@ -157,30 +131,6 @@ public class Server {
 		serverCommandDispatcher.shutdown();
 		messageDispatcher.shutdown();
 		System.out.println("Server successfully disconnected.");
-
-		try {
-			serverSocket.close();
-		} catch (IOException ioException) {
-			// The socket is already closed.
-			String address = serverSocket.getInetAddress().toString();
-			int port = serverSocket.getLocalPort();
-			throw new IOException(
-					"Error occured while closing the ServerSocket on address: " + address + ", port: " + port,
-					ioException);
-		}
-	}
-
-	/**
-	 * Disconnects a user. Terminates the client listener used by the user.
-	 * Prints an error message if there is no user with such name.
-	 * 
-	 * @param name
-	 *            The name of the user to be disconnected.
-	 */
-	synchronized void disconnectUser(ServersideListener listener) {
-		String name = listener.getUsername();
-		Message shutDownMessage = new Message("disconnect", name, "admin", SystemCode.DISCONNECT);
-		messageDispatcher.addMessageToQueue(shutDownMessage);
 	}
 
 	/**
@@ -217,35 +167,6 @@ public class Server {
 	}
 
 	/**
-	 * Initializes the server, opens the server socket and waits for user
-	 * connections.
-	 * 
-	 * @param args
-	 *            Server port. If null, default value is used.
-	 * @throws IOException
-	 */
-	private void startServer(String[] args) throws IOException {
-		isRunning = true;
-		try {
-			isRunning = initializeServer(args);
-
-			if (isRunning) {
-				serverCommandDispatcher = new ServerCommandDispatcher(this);
-				serverCommandDispatcher.start();
-				messageDispatcher = new MessageDispatcher(this);
-
-				waitForConnections();
-			}
-		} catch (IOException ioException) {
-			isRunning = false;
-			throw new IOException(ioException);
-		} catch (IllegalArgumentException e) {
-			isRunning = false;
-			throw new IllegalArgumentException(e);
-		}
-	}
-
-	/**
 	 * Accepts a username, checks if it is a valid username and returns a error
 	 * code. Valid username is at least 3 characters long, starts with English
 	 * letter and differ from special names /admin, administrator, all/
@@ -270,6 +191,49 @@ public class Server {
 		return resultCode;
 	}
 
+	/**
+	 * Initializes the server, opens the server socket and waits for user
+	 * connections.
+	 * 
+	 * @param args
+	 *            Server port. If null, default value is used.
+	 * @throws IOException
+	 */
+	private void startServer(String[] args) throws IOException {
+		isRunning = true;
+
+		// TaskCopyClients is responsible for coping the collection with all
+		// connected users.
+		// Coping the collection is needed for sending message to all users. The
+		// iteration is performed on the copy so new users can be added/removed
+		// to the original.
+		TimerTask taskCopyClients = new TaskCopyClients(clients, copyClients);
+		Timer timer = new Timer();
+		// First copy is performed immediately and then every 300 000
+		// milliseconds (5 minutes) a new copy is made.
+		timer.schedule(taskCopyClients, 0, 30000);
+
+		try {
+			isRunning = initializeServer(args);
+
+			if (isRunning) {
+				serverCommandDispatcher = new ServerCommandDispatcher(this);
+				serverCommandDispatcher.start();
+				messageDispatcher = new MessageDispatcher(this);
+
+				waitForConnections();
+			}
+		} catch (IOException ioException) {
+			isRunning = false;
+			throw new IOException(ioException);
+		} catch (IllegalArgumentException e) {
+			isRunning = false;
+			throw new IllegalArgumentException(e);
+		} finally {
+			timer.cancel();
+		}
+	}
+
 	private void printWelcomeMessage() throws IOException {
 		try {
 			InetAddress serverAdress = InetAddress.getLocalHost();
@@ -288,13 +252,6 @@ public class Server {
 		while (isRunning) {
 			try {
 				Socket socket = serverSocket.accept();
-				if (!isRunning) {
-					socket.close();
-					// The server is disconnection. No more connections are
-					// being accepted.
-					return;
-				}
-
 				System.out.println(socket.getInetAddress() + " connected");
 
 				ServersideListener clientListener = new ServersideListener(socket, messageDispatcher, this);
@@ -350,5 +307,11 @@ public class Server {
 	public static void main(String[] args) throws IOException {
 		Server server = new Server();
 		server.startServer(args);
+	}
+
+	public void copyClients() {
+		synchronized (clients) {
+			copyClients = new HashMap<>(clients);
+		}
 	}
 }
