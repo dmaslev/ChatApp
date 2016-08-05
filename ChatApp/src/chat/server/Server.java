@@ -6,6 +6,7 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -33,6 +34,7 @@ public class Server {
 
 	private MessageDispatcher messageDispatcher;
 	private ServerCommandDispatcher serverCommandDispatcher;
+	private DBConnector dbConnector;
 
 	public Server() {
 		clients = new HashMap<>();
@@ -67,14 +69,16 @@ public class Server {
 	 *            The name of the user.
 	 * @param messageListener
 	 *            Message listener of the user.
+	 * @throws SQLException 
 	 */
-	synchronized String addUser(String name, ServersideListener listener) {
+	synchronized String addUser(String name, ServersideListener listener) throws SQLException {
 		if (clients.containsKey(name)) {
 			// The given name is already in user
 			return "1";
 		}
 
 		clients.put(name, listener);
+		dbConnector.insert(name);
 		return "0";
 	}
 
@@ -94,7 +98,6 @@ public class Server {
 	 * @throws IOException
 	 */
 	void stopServer() throws IOException {
-		isRunning = false;
 		try {
 			serverSocket.close();
 		} catch (IOException ioException) {
@@ -105,6 +108,8 @@ public class Server {
 			System.err.println("Server socket on address: " + address + ", port: " + port + " was closed."
 					+ Logger.printError(ioException));
 		}
+		
+		isRunning = false;
 
 		synchronized (serverSideListeners) {
 			Iterator<ServersideListener> iterator = serverSideListeners.iterator();
@@ -198,8 +203,9 @@ public class Server {
 	 * @param args
 	 *            Server port. If null, default value is used.
 	 * @throws IOException
+	 * @throws SQLException 
 	 */
-	private void startServer(String[] args) throws IOException {
+	private void startServer(String[] args) throws IOException, SQLException {
 		isRunning = true;
 
 		// TaskCopyClients is responsible for coping the collection with all
@@ -211,7 +217,7 @@ public class Server {
 		Timer timer = new Timer();
 		// First copy is performed immediately and then every 300 000
 		// milliseconds (5 minutes) a new copy is made.
-		timer.schedule(taskCopyClients, 0, 30000);
+		timer.schedule(taskCopyClients, 0, 300000);
 
 		try {
 			isRunning = initializeServer(args);
@@ -223,6 +229,8 @@ public class Server {
 
 				waitForConnections();
 			}
+		} catch (SQLException e) {
+			throw new SQLException("Unable to connect to database server.", e);
 		} catch (IOException ioException) {
 			isRunning = false;
 			throw new IOException(ioException);
@@ -267,7 +275,7 @@ public class Server {
 		}
 	}
 
-	private boolean initializeServer(String[] args) throws IOException, IllegalArgumentException {
+	private boolean initializeServer(String[] args) throws IOException, IllegalArgumentException, SQLException {
 		if (args == null) {
 			return false;
 		}
@@ -294,6 +302,14 @@ public class Server {
 		} catch (BindException bindException) {
 			throw new IOException("Port " + port + " is already in use.", bindException);
 		}
+		
+		String password = "abcd1234";
+		dbConnector = new DBConnector(password);
+		try {
+			dbConnector.connect();
+		} catch (SQLException e) {
+			throw new SQLException("Unable to connect to database server.", e);
+		}
 
 		printWelcomeMessage();
 		return true;
@@ -304,14 +320,8 @@ public class Server {
 		return listener;
 	}
 
-	public static void main(String[] args) throws IOException {
+	public static void main(String[] args) throws IOException, SQLException {
 		Server server = new Server();
 		server.startServer(args);
-	}
-
-	public void copyClients() {
-		synchronized (clients) {
-			copyClients = new HashMap<>(clients);
-		}
 	}
 }

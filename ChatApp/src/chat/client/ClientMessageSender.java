@@ -1,10 +1,10 @@
 package chat.client;
 
-import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.net.Socket;
+import java.util.Scanner;
 
 import chat.util.Logger;
 import chat.util.SystemCode;
@@ -13,14 +13,14 @@ public class ClientMessageSender implements Runnable {
 
 	private Socket socket;
 	private BufferedWriter output;
-	private BufferedReader inputReader;
+	private Scanner inputReader;
 	private String username;
 
 	// Boolean variable used to stop the run method.
 	private boolean isRunning;
 	private OutputStreamWriter innerStream;
 
-	public ClientMessageSender(Socket socket, BufferedReader inputReader) {
+	public ClientMessageSender(Socket socket, Scanner inputReader) {
 		this.socket = socket;
 		this.inputReader = inputReader;
 	}
@@ -33,7 +33,7 @@ public class ClientMessageSender implements Runnable {
 			System.out.println("Enter your message: ");
 
 			while (isRunning) {
-				String message = inputReader.readLine();
+				String message = inputReader.nextLine();
 
 				if (message.equalsIgnoreCase(UserCommands.LOGOUT)) {
 					// User asked to logout.
@@ -44,7 +44,7 @@ public class ClientMessageSender implements Runnable {
 					isRunning = false;
 				} else {
 					System.out.print("Enter a username or \"/all\" to send to all connected users: ");
-					String receiver = inputReader.readLine();
+					String receiver = inputReader.nextLine();
 
 					sendMessage(SystemCode.REGULAR_MESSAGE, message, receiver);
 					if (!receiver.equals(username)) {
@@ -56,12 +56,7 @@ public class ClientMessageSender implements Runnable {
 			isRunning = false;
 			System.err.println("Lost connection with server. " + Logger.printError(ioException));
 		} finally {
-			try {
-				inputReader.close();
-			} catch (IOException e) {
-				// Closing input reader failed.
-				System.err.println("Error occured while closing the input reader." + Logger.printError(e));
-			}
+			inputReader.close();
 		}
 	}
 
@@ -109,18 +104,21 @@ public class ClientMessageSender implements Runnable {
 
 	/**
 	 * Opens new socket, input stream and returns the socket.
+	 * 
 	 * @return The new opened socket
-	 * @throws IOException Opening the socket or opening the data streams fails.
+	 * @throws IOException
+	 *             Opening the socket or opening the data streams fails.
 	 */
 	Socket reconnect() throws IOException {
-		System.out.println("You have been disconnected. If you want to reconnect please enter host address/ip adress of server/: ");
+		System.out.println(
+				"You have been disconnected. If you want to reconnect please enter host address/ip adress of server/: ");
 		try {
-			String serverAddress = inputReader.readLine();
+			String serverAddress = inputReader.nextLine();
 			socket = new Socket(serverAddress, socket.getPort());
- 		} catch (IOException e) {
- 			throw new IOException("Error occured while reading from console.", e);
+		} catch (IOException e) {
+			throw new IOException("Error occured while reading from console.", e);
 		}
-		
+
 		init();
 		return this.socket;
 	}
@@ -136,10 +134,10 @@ public class ClientMessageSender implements Runnable {
 	void sendUsernameForValidation() throws IOException {
 		System.out.print("Enter your username: ");
 		try {
-			username = inputReader.readLine();
+			username = inputReader.nextLine();
 			while (!validateUsername(username)) {
 				System.out.print("Enter your username: ");
-				username = inputReader.readLine();
+				username = inputReader.nextLine();
 			}
 
 			sendRegisterMessage(SystemCode.REGISTER, username);
@@ -166,21 +164,22 @@ public class ClientMessageSender implements Runnable {
 		try {
 			this.output.close();
 		} catch (IOException ioException) {
-			System.err.println("Closing the output stream failed. Close the inner stream." + Logger.printError(ioException));
-			
+			System.err.println(
+					"Closing the output stream failed. Close the inner stream." + Logger.printError(ioException));
+
 			try {
 				innerStream.close();
 			} catch (IOException e) {
 				System.err.println("Closing the inner output stream failed. " + Logger.printError(ioException));
 			}
 		}
-		
+
 		try {
 			this.socket.close();
 		} catch (IOException ioException) {
 			System.err.println("Closing the socket failed. " + Logger.printError(ioException));
 		}
-		
+
 		System.exit(0);
 	}
 

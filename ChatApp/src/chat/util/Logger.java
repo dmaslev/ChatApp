@@ -5,10 +5,10 @@ import java.io.StringWriter;
 
 public class Logger {
 	
-	public static String printError(Throwable th) {
+	public static String printError(Throwable throwable) {
 		StringWriter out = new StringWriter();
 		PrintWriter writer = new PrintWriter(out);
-		th.printStackTrace(writer);
+		throwable.printStackTrace(writer);
 		return out.toString();
 	}
 }

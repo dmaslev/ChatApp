@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.Socket;
+import java.sql.SQLException;
 import java.util.Date;
 import java.util.Map;
 
@@ -106,7 +107,9 @@ public class ServersideListener extends Thread {
 			messageServer.removeListener(this);
 			keepRunning = false;
 			closeRecourses();
-			System.err.println("Error occured in ServersideListener." + Logger.printError(ioException));
+			System.err.println("Error occured in ServersideListener. " + Logger.printError(ioException));
+		} catch (SQLException e) {
+			System.err.println("Connection with the database lost. " + Logger.printError(e));
 		}
 	}
 

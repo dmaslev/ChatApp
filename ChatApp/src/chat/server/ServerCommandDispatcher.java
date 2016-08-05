@@ -56,8 +56,7 @@ public class ServerCommandDispatcher extends Thread {
 	 * Prints information about all supported commands.
 	 */
 	private void printHelpMenu() {
-		System.out.println(
-				"- To stop the server enter a command \"/disconnect\". "
+		System.out.println("- To stop the server enter a command \"/disconnect\". "
 				+ "If you want to wait all messages currently in the queue to be sent you can "
 				+ "add \"false\" in the command or \"true\" if you want to shut down immediately. "
 				+ "If you don't select it all messages will be waited.");

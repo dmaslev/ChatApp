@@ -1,9 +1,8 @@
 package chat.client;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.Socket;
+import java.util.Scanner;
 
 public class Client {
 
@@ -13,7 +12,7 @@ public class Client {
 	private String serverAddress;
 	private int port;
 
-	private static BufferedReader inputReader;
+	private static Scanner inputReader;
 
 	/**
 	 * Sets connection to the server. Opens data input and output streams.
@@ -96,8 +95,8 @@ public class Client {
 			// Server address and port number were not provided. The user will
 			// be asked to enter server address. 
 			System.out.print("Enter host address/ip adress of server/: ");
-			inputReader = new BufferedReader(new InputStreamReader(System.in));
-			serverAddress = inputReader.readLine();
+			inputReader = new Scanner(System.in);
+			serverAddress = inputReader.nextLine();
 			if (serverAddress.length() == 0) {
 				throw new IllegalArgumentException("Server adress can not be empty string.");
 			}
