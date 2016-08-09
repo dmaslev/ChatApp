@@ -116,6 +116,7 @@ public class MessageSender implements Runnable {
 			sendSystemMessage(errorMessage, sender);
 			return;
 		}
+		
 		try {
 			BufferedWriter out = client.getOutputStream();
 			if (!sender.equalsIgnoreCase("admin")) {

@@ -43,14 +43,13 @@ public class Client {
 	 * @throws InterruptedException
 	 */
 	private void startClient() throws IOException, InterruptedException {
-		ClientMessageListener listener  = null;
 		try {
 			Socket socket = new Socket(serverAddress, port);
 			System.out.println("Successfully connected to: " + serverAddress + " on port: " + port);
 			
 			ClientMessageSender sender = new ClientMessageSender(socket, inputReader);
 			sender.init();
-			listener = new ClientMessageListener(socket, sender);
+			ClientMessageListener listener = new ClientMessageListener(socket, sender);
 			listener.init();
 			
 			Thread listenerThread = new Thread(listener);

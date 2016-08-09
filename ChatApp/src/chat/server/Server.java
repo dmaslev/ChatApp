@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Scanner;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -78,7 +79,6 @@ public class Server {
 		}
 
 		clients.put(name, listener);
-		dbConnector.insert(name);
 		return "0";
 	}
 
@@ -220,10 +220,11 @@ public class Server {
 		timer.schedule(taskCopyClients, 0, 300000);
 
 		try {
-			isRunning = initializeServer(args);
+			Scanner reader= new Scanner(System.in);
+			isRunning = initializeServer(args, reader);
 
 			if (isRunning) {
-				serverCommandDispatcher = new ServerCommandDispatcher(this);
+				serverCommandDispatcher = new ServerCommandDispatcher(this, reader);
 				serverCommandDispatcher.start();
 				messageDispatcher = new MessageDispatcher(this);
 
@@ -262,7 +263,7 @@ public class Server {
 				Socket socket = serverSocket.accept();
 				System.out.println(socket.getInetAddress() + " connected");
 
-				ServersideListener clientListener = new ServersideListener(socket, messageDispatcher, this);
+				ServersideListener clientListener = new ServersideListener(socket, messageDispatcher, dbConnector, this);
 				clientListener.start();
 				serverSideListeners.add(clientListener);
 			} catch (IOException ioException) {
@@ -275,7 +276,7 @@ public class Server {
 		}
 	}
 
-	private boolean initializeServer(String[] args) throws IOException, IllegalArgumentException, SQLException {
+	private boolean initializeServer(String[] args, Scanner reader) throws IOException, IllegalArgumentException, SQLException {
 		if (args == null) {
 			return false;
 		}
@@ -303,13 +304,10 @@ public class Server {
 			throw new IOException("Port " + port + " is already in use.", bindException);
 		}
 		
+		System.out.println("Enter password for the database sever: ");
 		String password = "abcd1234";
 		dbConnector = new DBConnector(password);
-		try {
-			dbConnector.connect();
-		} catch (SQLException e) {
-			throw new SQLException("Unable to connect to database server.", e);
-		}
+		dbConnector.connect();
 
 		printWelcomeMessage();
 		return true;

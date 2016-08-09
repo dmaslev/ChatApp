@@ -6,9 +6,12 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.Socket;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Date;
 import java.util.Map;
+
+import javax.naming.spi.DirStateFactory.Result;
 
 import chat.util.Logger;
 import chat.util.SystemCode;
@@ -24,13 +27,16 @@ public class ServersideListener extends Thread {
 
 	private MessageDispatcher messageDispatcher;
 	private Server messageServer;
+	private DBConnector dbConnector;
 
 	private String username;
 	private Date connectedDate;
 
-	public ServersideListener(Socket clientSocket, MessageDispatcher messageDispatcher, Server messageServer) {
+	public ServersideListener(Socket clientSocket, MessageDispatcher messageDispatcher, DBConnector dbConnector,
+			Server messageServer) {
 		this.clientSocket = clientSocket;
 		this.messageDispatcher = messageDispatcher;
+		this.dbConnector = dbConnector;
 		this.messageServer = messageServer;
 		this.connectedDate = new Date();
 	}
@@ -71,12 +77,21 @@ public class ServersideListener extends Thread {
 				}
 
 				if (messageType.equals(SystemCode.REGISTER)) {
+					String password = input.readLine();
 					// First check if the given username is available.
 					String resultCode = messageServer.validateUsername(textReceived);
 					// Second check to ensure that no other user logged in with
 					// the same username between last check and the time current
 					// user is logged in.
 					resultCode = messageServer.addUser(textReceived, this);
+
+					try {
+						String sql = "INSERT INTO users (`username`, `password`) VALUES (?, ?)";
+						String[] params = new String[] { textReceived, password };
+						this.dbConnector.insert(sql, params);
+					} catch (SQLException e) {
+						throw new SQLException("Cannot connect to the database.", e);
+					}
 
 					sendMessageToClient(resultCode);
 
@@ -88,6 +103,21 @@ public class ServersideListener extends Thread {
 					}
 
 					setUsername(textReceived);
+
+				} else if (messageType.equals(SystemCode.LOGIN)) {
+					String password = input.readLine();
+					String sql = "SELECT password FROM users WHERE username=?";
+					String[] params = new String[] { textReceived };
+					ResultSet resultSet = dbConnector.select(sql, params);
+					
+					if (resultSet.next()) {
+						String userPassword = resultSet.getString("password");
+						System.out.println(userPassword);
+						if (password.equals(userPassword)) {
+							sendMessageToClient("5");
+						}
+					}
+					
 				} else if (messageType.equals(SystemCode.LOGOUT)) {
 					keepRunning = false;
 					messageServer.disconnectUser(username);

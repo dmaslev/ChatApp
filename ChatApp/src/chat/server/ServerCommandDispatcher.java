@@ -9,9 +9,11 @@ public class ServerCommandDispatcher extends Thread {
 
 	private Server server;
 	private boolean isServerInputManagerOn;
+	private Scanner reader;
 
-	public ServerCommandDispatcher(Server server) {
+	public ServerCommandDispatcher(Server server, Scanner reader) {
 		this.setServer(server);
+		this.reader = reader;
 	}
 
 	/**
@@ -20,7 +22,6 @@ public class ServerCommandDispatcher extends Thread {
 	public void run() {
 		isServerInputManagerOn = true;
 
-		Scanner reader = new Scanner(System.in);
 		try {
 			while (isServerInputManagerOn) {
 				String line = reader.nextLine();
@@ -33,6 +34,8 @@ public class ServerCommandDispatcher extends Thread {
 					server.disconnectUser(name);
 				} else if (line.equalsIgnoreCase("/listall")) {
 					server.printConnectedUsers();
+				} else if (line.equalsIgnoreCase("")) {
+					
 				} else {
 					System.out.println("Invalid command.");
 				}
@@ -56,6 +59,7 @@ public class ServerCommandDispatcher extends Thread {
 	 * Prints information about all supported commands.
 	 */
 	private void printHelpMenu() {
+		// TODO update the info
 		System.out.println("- To stop the server enter a command \"/disconnect\". "
 				+ "If you want to wait all messages currently in the queue to be sent you can "
 				+ "add \"false\" in the command or \"true\" if you want to shut down immediately. "

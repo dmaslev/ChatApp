@@ -44,10 +44,10 @@ public class ClientMessageSender implements Runnable {
 					isRunning = false;
 				} else {
 					System.out.print("Enter a username or \"/all\" to send to all connected users: ");
-					String receiver = inputReader.nextLine();
+					String recipient = inputReader.nextLine();
 
-					sendMessage(SystemCode.REGULAR_MESSAGE, message, receiver);
-					if (!receiver.equals(username)) {
+					sendMessage(SystemCode.REGULAR_MESSAGE, message, recipient);
+					if (!recipient.equals(username)) {
 						System.out.println("Enter your message: ");
 					}
 				}
@@ -72,6 +72,7 @@ public class ClientMessageSender implements Runnable {
 	 */
 	public void init() throws IOException {
 		try {
+			// TODO check
 			// There is no need to store OutputSream returned by
 			// socket.getOutputStream() because closing the socket will closed
 			// it.
@@ -102,6 +103,37 @@ public class ClientMessageSender implements Runnable {
 		output.flush();
 	}
 
+	void readUsername() throws IOException {
+		System.out.println("Enter \"/register\" if you want to register new user or \"/login\" if you already have account.");
+		String command = inputReader.nextLine();
+		
+		System.out.print("Enter your username: ");
+		String username = inputReader.nextLine();
+		if (command.equals(UserCommands.REGISTER)) {
+			
+			while (!validateUsername(username)) {
+				System.out.print("Enter your username: ");
+				username = inputReader.nextLine();
+			}
+			
+			System.out.println("Enter a password: ");
+			String password = inputReader.nextLine();
+			try {
+				sendMessage(SystemCode.REGISTER, username, password);
+			} catch (IOException ioException) {
+				throw new IOException("Unable to send message to server.", ioException);
+			}
+		} else if (command.equals(UserCommands.LOGIN)) {
+			try {
+				System.out.print("Enter your password: ");
+				String password = inputReader.nextLine();
+				sendMessage(SystemCode.LOGIN, username, password);
+			} catch (IOException ioException) {
+				throw new IOException("Unable to send message to server.", ioException);
+			}
+		}
+	}
+
 	/**
 	 * Opens new socket, input stream and returns the socket.
 	 * 
@@ -121,31 +153,6 @@ public class ClientMessageSender implements Runnable {
 
 		init();
 		return this.socket;
-	}
-
-	/**
-	 * Reads a username in String format and validates it. If the validation
-	 * fails recursively calls the method until the validation is passed.
-	 * 
-	 * @param input
-	 *            BufferedReader for reading the input
-	 * @throws IOException
-	 */
-	void sendUsernameForValidation() throws IOException {
-		System.out.print("Enter your username: ");
-		try {
-			username = inputReader.nextLine();
-			while (!validateUsername(username)) {
-				System.out.print("Enter your username: ");
-				username = inputReader.nextLine();
-			}
-
-			sendRegisterMessage(SystemCode.REGISTER, username);
-
-		} catch (IOException ioException) {
-			isRunning = false;
-			throw new IOException("Unable to send message to server.", ioException);
-		}
 	}
 
 	void setUsername(String name) {
@@ -181,24 +188,6 @@ public class ClientMessageSender implements Runnable {
 		}
 
 		System.exit(0);
-	}
-
-	/**
-	 * Send a register message to server.
-	 * 
-	 * @param messageCode
-	 *            The system code of the message is used to define the type of
-	 *            the message.
-	 * @param username
-	 *            The username of the new client.
-	 * @throws IOException
-	 */
-	private void sendRegisterMessage(String messageCode, String username) throws IOException {
-		output.write(messageCode);
-		output.newLine();
-		output.write(username);
-		output.newLine();
-		output.flush();
 	}
 
 	/**

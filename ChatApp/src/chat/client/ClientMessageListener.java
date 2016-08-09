@@ -27,11 +27,12 @@ public class ClientMessageListener implements Runnable {
 		this.isRunning = true;
 
 		try {
-			if (!registerUser()) {
+			if (!initUsername()) {
 				// Error was occurred during registration the user.
 				return;
 			}
 
+			// The client successfully logged in and now can send messages.
 			Thread senderThread = new Thread(messageSender);
 			senderThread.start();
 
@@ -103,22 +104,9 @@ public class ClientMessageListener implements Runnable {
 		messageSender.shutdown();
 	}
 
-	/**
-	 * 
-	 * @return Returns false if error occurs while opening data input stream,
-	 *         reading from input stream or reading result message from socket
-	 *         input stream.
-	 * @throws IOException
-	 */
-	private boolean registerUser() throws IOException {
-		try {
-			// Reads username from the user and sends it for validation to the
-			// server.
-			messageSender.sendUsernameForValidation();
-		} catch (IOException ex) {
-			throw new IOException("Unable to send message to server.", ex);
-		}
-
+	private boolean initUsername() throws IOException {
+		messageSender.readUsername();
+		
 		try {
 			// Reads and integer code from the server. The value depends on
 			// server side validation for the username.
@@ -131,7 +119,7 @@ public class ClientMessageListener implements Runnable {
 				this.socket = messageSender.reconnect();
 				init();
 				
-				messageSender.sendUsernameForValidation();
+				messageSender.readUsername();
 				result = listener.readLine();
 				displayConvertResultCodeToMessage(result);
 			}
@@ -141,7 +129,7 @@ public class ClientMessageListener implements Runnable {
 					+ "sending the message to server, opening the socket or data input/ouput stream failed.",
 					ioException);
 		}
-
+		
 		return true;
 	}
 
@@ -169,6 +157,9 @@ public class ClientMessageListener implements Runnable {
 			break;
 		case "4":
 			message = "Username must start with english letter.";
+			break;
+		case "5":
+			message = "Failed to log in. Incorrect username or password.";
 			break;
 		default:
 			message = "Unknown system code.";
