@@ -113,6 +113,12 @@ public class ClientMessageListener implements Runnable {
 			String result = listener.readLine();
 			displayConvertResultCodeToMessage(result);
 
+			if (result.equals(SystemCode.FAILED_LOGIN)) {
+				messageSender.readUsername();
+				result = listener.readLine();
+				displayConvertResultCodeToMessage(result);
+			}
+			
 			// Looping until a message for successful login is received.
 			while (!result.equals(SystemCode.SUCCESSFUL_LOGIN)) {
 				// Previous try to log in failed. The server has closed the socket so new one must be opened.

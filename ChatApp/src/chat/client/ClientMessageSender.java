@@ -28,7 +28,6 @@ public class ClientMessageSender implements Runnable {
 	public void run() {
 		this.isRunning = true;
 
-		setUsername(username);
 		try {
 			System.out.println("Enter your message: ");
 
@@ -107,6 +106,11 @@ public class ClientMessageSender implements Runnable {
 		System.out.println("Enter \"/register\" if you want to register new user or \"/login\" if you already have account.");
 		String command = inputReader.nextLine();
 		
+		while(!(command.equals(UserCommands.REGISTER) || command.equals(UserCommands.LOGIN))) {
+			System.out.println("Invalid command. Try again.");
+			command = inputReader.nextLine();
+		}
+		
 		System.out.print("Enter your username: ");
 		String username = inputReader.nextLine();
 		if (command.equals(UserCommands.REGISTER)) {
@@ -116,7 +120,7 @@ public class ClientMessageSender implements Runnable {
 				username = inputReader.nextLine();
 			}
 			
-			System.out.println("Enter a password: ");
+			System.out.print("Enter a password: ");
 			String password = inputReader.nextLine();
 			try {
 				sendMessage(SystemCode.REGISTER, username, password);
@@ -131,7 +135,7 @@ public class ClientMessageSender implements Runnable {
 			} catch (IOException ioException) {
 				throw new IOException("Unable to send message to server.", ioException);
 			}
-		}
+		} 
 	}
 
 	/**

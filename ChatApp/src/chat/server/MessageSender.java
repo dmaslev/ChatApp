@@ -2,6 +2,9 @@ package chat.server;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.Date;
 
 import chat.util.Logger;
 
@@ -32,6 +35,8 @@ public class MessageSender implements Runnable {
 			} catch (IOException e) {
 				System.err.println("Sending message to the client failed. Posible reasons - "
 						+ " client has been disconnected or output stream was closed." + Logger.printError(e));
+			} catch (SQLException e) {
+				System.err.println("Unable to connect to the database." + Logger.printError(e));
 			}
 		}
 	}
@@ -43,8 +48,9 @@ public class MessageSender implements Runnable {
 	 * @param message
 	 *            A message to be sent.
 	 * @throws IOException
+	 * @throws SQLException 
 	 */
-	private void sendMessage(Message message) throws IOException {
+	private void sendMessage(Message message) throws IOException, SQLException {
 		String sender = message.getSender();
 		String messageText = message.getMessageText();
 		String recipient = message.getRecipient();
@@ -104,8 +110,9 @@ public class MessageSender implements Runnable {
 	 * @param sender
 	 *            Username of sender of the message.
 	 * @throws IOException
+	 * @throws SQLException 
 	 */
-	private void sendMessageToOneUser(String recipient, String messageText, String sender) throws IOException {
+	private void sendMessageToOneUser(String recipient, String messageText, String sender) throws IOException, SQLException {
 		ServersideListener client = server.getServersideListener(recipient);
 
 		if (client == null) {
@@ -116,22 +123,50 @@ public class MessageSender implements Runnable {
 			sendSystemMessage(errorMessage, sender);
 			return;
 		}
-		
+
 		try {
 			BufferedWriter out = client.getOutputStream();
 			if (!sender.equalsIgnoreCase("admin")) {
 				messageText = sender + ": " + messageText;
+				insertMessage(sender, recipient, messageText);
 			}
 
 			out.write(messageText);
 			out.newLine();
 			out.flush();
+
 		} catch (IOException ioException) {
 			// Send message back to the sender to inform that the message was
 			// not sent.
 			String text = "Failed to send message to: " + recipient;
 			sendMessageToOneUser(sender, text, "admin");
 			throw new IOException("Unable to send the message to " + recipient, ioException);
+		}
+	}
+
+	private void insertMessage(String sender, String recipient, String text) throws SQLException {
+		String selectUser = "SELECT * FROM users WHERE username=? or username=?";
+		Object[] params = new String[] { sender, recipient };
+		int userOne = 0;
+		int userTwo = 0;
+		try {
+			ResultSet resultSet = server.getDbConnector().select(selectUser, params);
+			if (resultSet.next()) {
+				userOne = resultSet.getInt("id_users");
+				if (resultSet.next()) {
+					userTwo = resultSet.getInt("id_users");
+				} else {
+					// The sender send message to himself therefore the sender and the recipient are same user.
+					userTwo = userOne;
+				}
+			};
+			
+			String sql = "INSERT INTO messages (`text`, `date`, `sender`, `recipient`) VALUES (?, ?, ?, ?)";
+			Date currentDate = new Date();
+			params = new Object[] {text, currentDate, userOne, userTwo };
+			server.getDbConnector().insert(sql, params);
+		} catch (SQLException e) {
+			throw new SQLException("Connection with the database lost.", e);
 		}
 	}
 }

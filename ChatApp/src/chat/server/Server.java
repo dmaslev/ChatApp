@@ -74,7 +74,7 @@ public class Server {
 	 */
 	synchronized String addUser(String name, ServersideListener listener) throws SQLException {
 		if (clients.containsKey(name)) {
-			// The given name is already in user
+			// The given name is already in use
 			return "1";
 		}
 
@@ -89,6 +89,10 @@ public class Server {
 	 */
 	Map<String, ServersideListener> getCopyOfClients() {
 		return copyClients;
+	}
+
+	DBConnector getDbConnector() {
+		return this.dbConnector;
 	}
 
 	/**

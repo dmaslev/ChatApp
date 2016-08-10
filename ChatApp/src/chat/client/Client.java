@@ -26,8 +26,7 @@ public class Client {
 				startClient();
 			} catch (InterruptedException interruptedException) {
 				// Main thread was interrupted before client message listener
-				// was
-				// started.
+				// was started.
 				throw new RuntimeException(interruptedException);
 			}
 		} catch (IllegalArgumentException illegalArgumentException) {

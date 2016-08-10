@@ -11,8 +11,6 @@ import java.sql.SQLException;
 import java.util.Date;
 import java.util.Map;
 
-import javax.naming.spi.DirStateFactory.Result;
-
 import chat.util.Logger;
 import chat.util.SystemCode;
 
@@ -49,22 +47,7 @@ public class ServersideListener extends Thread {
 		this.keepRunning = true;
 
 		try {
-			try {
-				this.inputInner = new InputStreamReader(clientSocket.getInputStream());
-				this.input = new BufferedReader(inputInner);
-			} catch (IOException e) {
-				// Failed to open input stream.
-				closeRecourses();
-				throw new IOException("Opening input stream failed.", e);
-			}
-
-			try {
-				this.outputInner = new OutputStreamWriter(this.clientSocket.getOutputStream());
-				this.output = new BufferedWriter(outputInner);
-			} catch (IOException e) {
-				closeRecourses();
-				throw new IOException("Opening output stream failed.", e);
-			}
+			openResources();
 
 			while (keepRunning) {
 				String messageType = input.readLine();
@@ -85,12 +68,15 @@ public class ServersideListener extends Thread {
 					// user is logged in.
 					resultCode = messageServer.addUser(textReceived, this);
 
-					try {
-						String sql = "INSERT INTO users (`username`, `password`) VALUES (?, ?)";
-						String[] params = new String[] { textReceived, password };
-						this.dbConnector.insert(sql, params);
-					} catch (SQLException e) {
-						throw new SQLException("Cannot connect to the database.", e);
+					if (resultCode.equals("0")) {
+						try {
+							String sql = "INSERT INTO users (`username`, `password`) VALUES (?, ?)";
+							Object[] params = new String[] { textReceived, password };
+							this.dbConnector.insert(sql, params);
+							loginUser(textReceived);
+						} catch (SQLException e) {
+							throw new SQLException("Error occured while inserting elemnt in the database", e);
+						}
 					}
 
 					sendMessageToClient(resultCode);
@@ -103,21 +89,23 @@ public class ServersideListener extends Thread {
 					}
 
 					setUsername(textReceived);
-
 				} else if (messageType.equals(SystemCode.LOGIN)) {
 					String password = input.readLine();
 					String sql = "SELECT password FROM users WHERE username=?";
 					String[] params = new String[] { textReceived };
 					ResultSet resultSet = dbConnector.select(sql, params);
-					
 					if (resultSet.next()) {
 						String userPassword = resultSet.getString("password");
-						System.out.println(userPassword);
 						if (password.equals(userPassword)) {
-							sendMessageToClient("5");
+							sendMessageToClient(SystemCode.SUCCESSFUL_LOGIN);
+							messageServer.addUser(textReceived, this);
+							loginUser(textReceived);
+							setUsername(textReceived);
+							continue;
 						}
 					}
 					
+					sendMessageToClient(SystemCode.FAILED_LOGIN);
 				} else if (messageType.equals(SystemCode.LOGOUT)) {
 					keepRunning = false;
 					messageServer.disconnectUser(username);
@@ -208,6 +196,45 @@ public class ServersideListener extends Thread {
 
 	private void setUsername(String name) {
 		this.username = name;
+	}
+
+	private void openResources() throws IOException {
+		try {
+			this.inputInner = new InputStreamReader(clientSocket.getInputStream());
+			this.input = new BufferedReader(inputInner);
+		} catch (IOException e) {
+			// Failed to open input stream.
+			closeRecourses();
+			throw new IOException("Opening input stream failed.", e);
+		}
+
+		try {
+			this.outputInner = new OutputStreamWriter(this.clientSocket.getOutputStream());
+			this.output = new BufferedWriter(outputInner);
+		} catch (IOException e) {
+			closeRecourses();
+			throw new IOException("Opening output stream failed.", e);
+		}
+	}
+
+	private void loginUser(String username) throws SQLException {
+		String selectUser= "SELECT * FROM users WHERE username=?";
+		Object[] params = new String[] { username };
+		
+		try {
+			ResultSet resultSet = dbConnector.select(selectUser, params);
+			if (resultSet.next()) {
+				int userID = resultSet.getInt("id_users");
+				String ip = this.clientSocket.getInetAddress().toString();
+				Date dateLoggedIn = new Date();
+				params = new Object[] { userID, ip, dateLoggedIn };
+				String sql = "INSERT INTO connections (`id_user`, `ip`, `date_logged_in`) VALUES (?, ?, ?)";
+				dbConnector.insert(sql, params);
+			}
+		} catch (SQLException e) {
+			throw new SQLException("Connection with the database lost.", e);
+		}
+		
 	}
 
 	private void sendMessageToClient(String text) throws IOException {
