@@ -13,9 +13,7 @@ public class DBConnector {
 	private String password;
 
 	private Connection connection;
-//	private Statement statement;
 	private ResultSet resultSet;
-	private PreparedStatement preparedStatement;
 
 	public DBConnector(String password) {
 		this.password = password;
@@ -25,15 +23,14 @@ public class DBConnector {
 		try {
 			connection = DriverManager.getConnection(this.URL, this.USER, this.password);
 		} catch (SQLException e) {
-			throw new SQLException("Unable to connect to " + this.URL + " with user: " + this.USER, e);
+			throw new SQLException("Access error occured while connectiong to database: " + this.URL + " with user: " + this.USER, e);
 		}
 
-		System.out.println("Successfully connected to databaserver: " + this.URL);
-//		statement = connection.createStatement();
+		System.out.println("Successfully connected to database server: " + this.URL);
 	}
 
-	public void insert(String sql, Object params[]) throws SQLException {
-		preparedStatement = connection.prepareStatement(sql);
+	public synchronized void insert(String sql, Object params[]) throws SQLException {
+		PreparedStatement preparedStatement = connection.prepareStatement(sql);
 		for (int i = 0; i < params.length; i++) {
 			preparedStatement.setObject(i + 1, params[i]);
 		}
@@ -42,7 +39,7 @@ public class DBConnector {
 	}
 
 	public ResultSet select(String sql, Object[] params) throws SQLException {
-		preparedStatement = connection.prepareStatement(sql);
+		PreparedStatement preparedStatement = connection.prepareStatement(sql);
 		for (int i = 0; i < params.length; i++) {
 			preparedStatement.setObject(i + 1, params[i]);
 		}

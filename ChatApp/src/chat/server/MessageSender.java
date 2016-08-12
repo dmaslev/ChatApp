@@ -90,10 +90,11 @@ public class MessageSender implements Runnable {
 
 			// Inform the user that he has been disconnected. Shut down the
 			// listener and remove it from the collection with all listeners.
-			if (textMessage.equals("disconnect") || textMessage.equals("logout")) {
+			if (textMessage.equals("disconnect")) {
 				server.stopListener(recipient);
-				server.removeListener(server.getServersideListener(recipient));
-				System.out.println(recipient + " disconnected.");
+				ServersideListener listener = server.getServersideListener(recipient);
+				server.removeListener(listener);
+				listener.closeRecourses();
 			}
 		} catch (IOException ioException) {
 			throw new IOException("Unable to send the message to " + recipient, ioException);
@@ -145,25 +146,30 @@ public class MessageSender implements Runnable {
 	}
 
 	private void insertMessage(String sender, String recipient, String text) throws SQLException {
-		String selectUser = "SELECT * FROM users WHERE username=? or username=?";
-		Object[] params = new String[] { sender, recipient };
+		String selectUser = "SELECT id_users FROM users WHERE username=?";
+		Object[] params = new Object[] { sender };
 		int userOne = 0;
 		int userTwo = 0;
 		try {
 			ResultSet resultSet = server.getDbConnector().select(selectUser, params);
 			if (resultSet.next()) {
 				userOne = resultSet.getInt("id_users");
+			}
+			
+			if (sender.equals(recipient)) {
+				userTwo = userOne;
+			} else {
+				params = new Object[] { recipient };
+				resultSet = server.getDbConnector().select(selectUser, params);
+				
 				if (resultSet.next()) {
 					userTwo = resultSet.getInt("id_users");
-				} else {
-					// The sender send message to himself therefore the sender and the recipient are same user.
-					userTwo = userOne;
 				}
-			};
+			}
 			
 			String sql = "INSERT INTO messages (`text`, `date`, `sender`, `recipient`) VALUES (?, ?, ?, ?)";
 			Date currentDate = new Date();
-			params = new Object[] {text, currentDate, userOne, userTwo };
+			params = new Object[] { text, currentDate, userOne, userTwo };
 			server.getDbConnector().insert(sql, params);
 		} catch (SQLException e) {
 			throw new SQLException("Connection with the database lost.", e);

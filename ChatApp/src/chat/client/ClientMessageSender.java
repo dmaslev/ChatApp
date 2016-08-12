@@ -14,7 +14,6 @@ public class ClientMessageSender implements Runnable {
 	private Socket socket;
 	private BufferedWriter output;
 	private Scanner inputReader;
-	private String username;
 
 	// Boolean variable used to stop the run method.
 	private boolean isRunning;
@@ -46,9 +45,7 @@ public class ClientMessageSender implements Runnable {
 					String recipient = inputReader.nextLine();
 
 					sendMessage(SystemCode.REGULAR_MESSAGE, message, recipient);
-					if (!recipient.equals(username)) {
-						System.out.println("Enter your message: ");
-					}
+					System.out.println("Enter your message: ");
 				}
 			}
 		} catch (IOException ioException) {
@@ -59,10 +56,6 @@ public class ClientMessageSender implements Runnable {
 		}
 	}
 
-	public String getUsername() {
-		return this.username;
-	}
-
 	/**
 	 * Open data stream used by ClientMessageSender
 	 * 
@@ -71,7 +64,6 @@ public class ClientMessageSender implements Runnable {
 	 */
 	public void init() throws IOException {
 		try {
-			// TODO check
 			// There is no need to store OutputSream returned by
 			// socket.getOutputStream() because closing the socket will closed
 			// it.
@@ -103,23 +95,24 @@ public class ClientMessageSender implements Runnable {
 	}
 
 	void readUsername() throws IOException {
-		System.out.println("Enter \"/register\" if you want to register new user or \"/login\" if you already have account.");
+		System.out.println(
+				"Enter \"/register\" if you want to register new user or \"/login\" if you already have account.");
 		String command = inputReader.nextLine();
-		
-		while(!(command.equals(UserCommands.REGISTER) || command.equals(UserCommands.LOGIN))) {
+
+		while (!(command.equals(UserCommands.REGISTER) || command.equals(UserCommands.LOGIN))) {
 			System.out.println("Invalid command. Try again.");
 			command = inputReader.nextLine();
 		}
-		
+
 		System.out.print("Enter your username: ");
 		String username = inputReader.nextLine();
 		if (command.equals(UserCommands.REGISTER)) {
-			
+
 			while (!validateUsername(username)) {
 				System.out.print("Enter your username: ");
 				username = inputReader.nextLine();
 			}
-			
+
 			System.out.print("Enter a password: ");
 			String password = inputReader.nextLine();
 			try {
@@ -135,7 +128,7 @@ public class ClientMessageSender implements Runnable {
 			} catch (IOException ioException) {
 				throw new IOException("Unable to send message to server.", ioException);
 			}
-		} 
+		}
 	}
 
 	/**
@@ -157,10 +150,6 @@ public class ClientMessageSender implements Runnable {
 
 		init();
 		return this.socket;
-	}
-
-	void setUsername(String name) {
-		this.username = name;
 	}
 
 	/**
@@ -205,8 +194,6 @@ public class ClientMessageSender implements Runnable {
 
 		try {
 			output.write(SystemCode.LOGOUT);
-			output.newLine();
-			output.write(username);
 			output.newLine();
 			output.flush();
 		} catch (IOException ioException) {

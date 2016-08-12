@@ -32,13 +32,6 @@ public class MessageDispatcher {
 		return false;
 	}
 
-	/**
-	 * 
-	 * @param shutDownImmediately
-	 *            If false all messages currently in the queue will be sent. If
-	 *            true the message dispatcher will shut down immediately without
-	 *            sending the messages in the queue.
-	 */
 	void shutdown() {
 		// Set keepRunning to false so it is not possible to add more messages in the queue.
 		this.keepRunning = false;

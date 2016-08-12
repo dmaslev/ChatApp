@@ -113,7 +113,7 @@ public class ClientMessageListener implements Runnable {
 			String result = listener.readLine();
 			displayConvertResultCodeToMessage(result);
 
-			if (result.equals(SystemCode.FAILED_LOGIN)) {
+			while (result.equals(SystemCode.FAILED_LOGIN)) {
 				messageSender.readUsername();
 				result = listener.readLine();
 				displayConvertResultCodeToMessage(result);
@@ -166,6 +166,9 @@ public class ClientMessageListener implements Runnable {
 			break;
 		case "5":
 			message = "Failed to log in. Incorrect username or password.";
+			break;
+		case "6":
+			message = "This user is already logged in.";
 			break;
 		default:
 			message = "Unknown system code.";

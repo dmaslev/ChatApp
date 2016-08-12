@@ -17,11 +17,11 @@ import chat.util.SystemCode;
 public class ServersideListener extends Thread {
 
 	private Socket clientSocket;
+	private boolean keepRunning;
 	private BufferedWriter output;
 	private OutputStreamWriter outputInner;
 	private BufferedReader input;
 	private InputStreamReader inputInner;
-	private boolean keepRunning;
 
 	private MessageDispatcher messageDispatcher;
 	private Server messageServer;
@@ -51,11 +51,12 @@ public class ServersideListener extends Thread {
 
 			while (keepRunning) {
 				String messageType = input.readLine();
+				if (messageType == null || messageType.equals(SystemCode.LOGOUT)) {
+					return;
+				}
+
 				String textReceived = input.readLine();
-				if (messageType == null || textReceived == null) {
-					// Client socket was closed.
-					closeRecourses();
-					messageServer.removeListener(this);
+				if (textReceived == null) {
 					return;
 				}
 
@@ -75,6 +76,7 @@ public class ServersideListener extends Thread {
 							this.dbConnector.insert(sql, params);
 							loginUser(textReceived);
 						} catch (SQLException e) {
+							sendMessageToClient(resultCode);
 							throw new SQLException("Error occured while inserting elemnt in the database", e);
 						}
 					}
@@ -97,6 +99,13 @@ public class ServersideListener extends Thread {
 					if (resultSet.next()) {
 						String userPassword = resultSet.getString("password");
 						if (password.equals(userPassword)) {
+							String isUserLoggedIn = messageServer.addUser(textReceived, this);
+							if (isUserLoggedIn.equals("1")) {
+								// The user is already logged in.
+								sendMessageToClient(SystemCode.ALREADY_LOGGED_IN);
+								continue;
+							}
+							
 							sendMessageToClient(SystemCode.SUCCESSFUL_LOGIN);
 							messageServer.addUser(textReceived, this);
 							loginUser(textReceived);
@@ -104,11 +113,10 @@ public class ServersideListener extends Thread {
 							continue;
 						}
 					}
-					
+
+					// User failed to log in. Possible reasons wrong credentials
+					// or provided username is not registered.
 					sendMessageToClient(SystemCode.FAILED_LOGIN);
-				} else if (messageType.equals(SystemCode.LOGOUT)) {
-					keepRunning = false;
-					messageServer.disconnectUser(username);
 				} else if (messageType.equals(SystemCode.REGULAR_MESSAGE)) {
 					String recipient = input.readLine();
 
@@ -122,12 +130,23 @@ public class ServersideListener extends Thread {
 			}
 		} catch (IOException ioException) {
 			// Connection lost
-			messageServer.removeListener(this);
 			keepRunning = false;
-			closeRecourses();
 			System.err.println("Error occured in ServersideListener. " + Logger.printError(ioException));
 		} catch (SQLException e) {
 			System.err.println("Connection with the database lost. " + Logger.printError(e));
+		} finally {
+			messageServer.removeListener(this);
+			closeRecourses();
+			if (username != null) {
+				System.out.println(username + " has disconnected.");
+
+				try {
+					insertLogoutEntry();
+				} catch (SQLException e) {
+					System.err.println("User +" + username + "has disconnected. "
+							+ "Error occured while inserting loggout entry in the database." + Logger.printError(e));
+				}
+			}
 		}
 	}
 
@@ -137,6 +156,10 @@ public class ServersideListener extends Thread {
 
 	public BufferedWriter getOutputStream() {
 		return this.output;
+	}
+
+	public String getIP() {
+		return this.clientSocket.getInetAddress().toString();
 	}
 
 	/**
@@ -198,6 +221,20 @@ public class ServersideListener extends Thread {
 		this.username = name;
 	}
 
+	private void insertLogoutEntry() throws SQLException {
+		System.out.println("log test");
+		String ip = getIP();
+		Date date = new Date();
+		String sql = "INSERT INTO logouts (`id_user_logout`, `ip`, `date_logged_out`) SELECT id_users, ?, ? FROM users WHERE  username=?;";
+
+		Object[] params = new Object[] { ip, date, username };
+		try {
+			dbConnector.insert(sql, params);
+		} catch (SQLException e) {
+			throw new SQLException("Cannot connect to the database.", e);
+		}
+	}
+
 	private void openResources() throws IOException {
 		try {
 			this.inputInner = new InputStreamReader(clientSocket.getInputStream());
@@ -218,23 +255,16 @@ public class ServersideListener extends Thread {
 	}
 
 	private void loginUser(String username) throws SQLException {
-		String selectUser= "SELECT * FROM users WHERE username=?";
-		Object[] params = new String[] { username };
-		
+		String sql = "INSERT INTO connections (`id_user`, `ip`, `date_logged_in`) SELECT id_users, ?, ? FROM users WHERE username=?;";
+		String ip = this.clientSocket.getInetAddress().toString();
+		Date dateLoggedIn = new Date();
+		Object[] params = new Object[] { ip, dateLoggedIn, username };
+
 		try {
-			ResultSet resultSet = dbConnector.select(selectUser, params);
-			if (resultSet.next()) {
-				int userID = resultSet.getInt("id_users");
-				String ip = this.clientSocket.getInetAddress().toString();
-				Date dateLoggedIn = new Date();
-				params = new Object[] { userID, ip, dateLoggedIn };
-				String sql = "INSERT INTO connections (`id_user`, `ip`, `date_logged_in`) VALUES (?, ?, ?)";
-				dbConnector.insert(sql, params);
-			}
+			dbConnector.insert(sql, params);
 		} catch (SQLException e) {
 			throw new SQLException("Connection with the database lost.", e);
 		}
-		
 	}
 
 	private void sendMessageToClient(String text) throws IOException {

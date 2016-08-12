@@ -3,13 +3,8 @@ package chat.server;
 import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.text.DateFormat;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Scanner;
-
-import com.mysql.fabric.xmlrpc.base.Data;
 
 import chat.util.Logger;
 
@@ -29,7 +24,6 @@ public class ServerCommandDispatcher extends Thread {
 	 */
 	public void run() {
 		isServerInputManagerOn = true;
-		DateFormat dateFormat = new SimpleDateFormat("YYYY-MM-DD hh:mm:ss");
 
 		try {
 			while (isServerInputManagerOn) {
@@ -38,7 +32,7 @@ public class ServerCommandDispatcher extends Thread {
 					printHelpMenu();
 				} else if (line.equalsIgnoreCase("/disconnect")) {
 					server.stopServer();
-				} else if (line.startsWith("/remove: ")) {
+				} else if (line.startsWith("/remove:")) {
 					String name = line.substring(8).trim();
 					server.disconnectUser(name);
 				} else if (line.equalsIgnoreCase("/listall")) {
@@ -46,52 +40,19 @@ public class ServerCommandDispatcher extends Thread {
 				} else if (line.equalsIgnoreCase("/show full history")) {
 					System.out.println("Enter start and end date on seperated lines in format YYYY-MM-DD HH:mm:ss "
 							+ "or /skip to see full history for selected users.");
-					String firstDate = reader.nextLine();
-					if (firstDate.equals("/skip")) {
-						showFullHistory();	
+					String startDate = reader.nextLine();
+					if (startDate.equals("/skip")) {
+						showFullHistory();
 						continue;
 					}
-					
-					String startDate = reader.nextLine();
-					String endDate = reader.nextLine();
-					String sql = "SELECT * FROM ("
-							+ "SELECT date_logged_in as date, id_user, 'login' as action,  ip "
-							+ "FROM connections "
-							+ "union "
-							+ "SELECT date, recipient, 'message', text "
-							+ "FROM  messages  "
-							+ "union  "
-							+ "SELECT date_logged_out as date, id_user_logout, 'logout', ip  "
-							+ "FROM logouts) "
-							+ "as result "
-							+ "WHERE result.date >= ? AND result.date <= ? ORDER BY date;";
-					Object[] params = new Object[] { startDate, endDate };
-					
-					ResultSet resultSet = server.getDbConnector().select(sql, params);
-					printResultSet(resultSet);
-				} else if (line.equalsIgnoreCase("/show history")) {
-					System.out.print("Enter the usernames of the users that you "
-							+ "want to see history for seperated with ',' or 'all' if you want to see info for all users");
-					String usersAsString = reader.nextLine();
-					String[] users = usersAsString.split("\\s*,\\s*");
-					
-					System.out.println("Enter start and end date on seperated lines in format YYYY-MM-DD HH:mm:ss "
-							+ "or /skip to see full history for selected users.");
-					String firstDate = reader.nextLine();
-					if (firstDate.equals("/skip")) {
-						for (String string : users) {
-							// TODO execute the sql query
-						}
-					}
-					
-					try {
-						Date startDate = dateFormat.parse(firstDate);
-						String secondDate = reader.nextLine();
-						Date endDate = dateFormat.parse(secondDate);
 
-					} catch (ParseException e) {
-						System.err.println("Wrong date format used. " + Logger.printError(e));
-					}
+					showFullHistoryTimePeriod(startDate);
+				} else if (line.equalsIgnoreCase("/show history")) {
+					System.out.println("Enter the usernames of the users that you "
+							+ "want to see history for seperated with ',': ");
+					String usersAsString = reader.nextLine();
+
+					showHistory(usersAsString);
 				} else {
 					System.out.println("Invalid command.");
 				}
@@ -102,7 +63,7 @@ public class ServerCommandDispatcher extends Thread {
 		} catch (SQLException e) {
 			System.err.println("Lost connection with the database. " + Logger.printError(e));
 		} finally {
-			reader.close();
+			shutdown();
 		}
 	}
 
@@ -111,14 +72,29 @@ public class ServerCommandDispatcher extends Thread {
 	 */
 	void shutdown() {
 		isServerInputManagerOn = false;
+		reader.close();
+	}
+
+	private void showFullHistoryTimePeriod(String startDate) throws SQLException {
+		String endDate = reader.nextLine();
+		String sql = "SELECT * FROM (" + "SELECT date_logged_in as date, id_user, 'login' as type, ip as text "
+				+ "FROM connections " + "union " + "SELECT date as date, recipient, 'received' as type, text "
+				+ "FROM  messages  " + "UNION SELECT date, recipient, 'sent', text FROM messages "
+				+ "union  " + "SELECT date_logged_out as date, id_user_logout, 'logout', ip  "
+				+ "FROM logouts) " + "as result " + "WHERE result.date >= ? AND result.date <= ? ORDER BY date;";
+		String[] params = new String[] { startDate, endDate };
+
+		ResultSet resultSet = server.getDbConnector().select(sql, params);
+		printResultSet(resultSet);
 	}
 
 	private void showFullHistory() throws SQLException {
 		String sql = "SELECT date_logged_in as date, id_user, 'login' as type,  ip as text FROM connections "
-				+ "union SELECT date, recipient, 'message', text FROM  messages union "
-				+ "SELECT date_logged_out as date, id_user_logout, 'logout', ip FROM logouts  "
+				+ "UNION SELECT date, recipient, 'sent', text FROM  messages "  
+				+ "UNION SELECT date, sender, 'received', text FROM messages "
+				+ "UNION SELECT date_logged_out as date, id_user_logout, 'logout', ip FROM logouts " 
 				+ "order by date;";
-		Object[] params = new Object[] {};
+		String[] params = new String[] {};
 		try {
 			ResultSet resultSet = server.getDbConnector().select(sql, params);
 			printResultSet(resultSet);
@@ -150,9 +126,12 @@ public class ServerCommandDispatcher extends Thread {
 			} else if (type.equals("logout")) {
 				String ip = resultSet.getString("text");
 				sBuilder.append(" logged out from: " + ip);
-			} else if (type.equals("message")) {
+			} else if (type.equals("received")) {
 				String message = resultSet.getString("text");
 				sBuilder.append(" received message: " + message);
+			} else if (type.equals("sent")) {
+				String message = resultSet.getString("text");
+				sBuilder.append(" sent message: " + message);
 			} else {
 				System.out.println("Unknown sql query.");
 			}
@@ -160,14 +139,66 @@ public class ServerCommandDispatcher extends Thread {
 			sBuilder.append("\n");
 		}
 
+		if (sBuilder.length() == 0) {
+			System.out.println("No information found. ");
+			return;
+		}
+		
 		System.out.println(sBuilder.toString());
+	}
+
+	private void showHistory(String usersAsString) throws SQLException {
+		String[] users = usersAsString.split("\\s*,\\s*");
+
+		System.out.println("Enter start and end date on seperated lines in format YYYY-MM-DD HH:mm:ss "
+				+ "or /skip to see full history for selected users.");
+		String firstDate = reader.nextLine();
+		String sql = "SELECT * FROM "
+				+ "(SELECT date_logged_in AS date, id_user, 'login' AS type, ip AS text FROM connections "
+				+ "UNION SELECT  date, sender, 'sent', text FROM messages "
+				+ "UNION SELECT date, recipient, 'received', text FROM messages "
+				+ "UNION SELECT date_logged_out AS date, id_user_logout, 'logout', ip FROM logouts) "
+				+ "AS result WHERE ";
+
+		StringBuilder sBuilder = new StringBuilder();
+		boolean isFirstElement = true;
+		for (String user : users) {
+			String sqlUserName = "SELECT id_users FROM users WHERE username = ?;";
+			Object[] params = new Object[] { user };
+			ResultSet rSet = server.getDbConnector().select(sqlUserName, params);
+			if (rSet.next()) {
+				int idUser = rSet.getInt("id_users");
+				if (!isFirstElement) {
+					sBuilder.append(" or ");
+				}
+
+				sBuilder.append("id_user=" + idUser);
+
+			}
+
+			isFirstElement = false;
+		}
+		
+		Object[] params = new Object[] {};
+		if (!firstDate.equals("/skip")) {
+			String secondDate = reader.nextLine();
+			if (sBuilder.length() != 0) {
+				sBuilder.append(" AND ");
+			}
+			
+			sBuilder.append(" result.date >= ? AND result.date <= ? ");
+			params = new Object[] { firstDate, secondDate };
+		}
+
+		sql = sql + sBuilder.toString() + " ORDER BY date";
+		ResultSet resultSet = server.getDbConnector().select(sql, params);
+		printResultSet(resultSet);
 	}
 
 	/**
 	 * Prints information about all supported commands.
 	 */
 	private void printHelpMenu() {
-		// TODO update the info
 		System.out.println("- To stop the server enter a command \"/disconnect\". "
 				+ "If you want to wait all messages currently in the queue to be sent you can "
 				+ "add \"false\" in the command or \"true\" if you want to shut down immediately. "
@@ -175,7 +206,7 @@ public class ServerCommandDispatcher extends Thread {
 		System.out.println("- To disconnect a user enter a command in format: \"/remove: [username]\".");
 		System.out.println("- To see all connected users enter a command \"/listall\".");
 		System.out.println("- To see full server history /messages, users connections, "
-				+ "users logouts/ enter a command \"/show full history\".");
+				+ "users logouts/ enter a command \"/show full history\" and follow the instructions.");
 		System.out.println(" - To see history for concrete user or concrete time period"
 				+ " enter a command \"/show history\" and follow the instructions.");
 	}

@@ -93,7 +93,7 @@ public class Client {
 			// Server address and port number were not provided. The user will
 			// be asked to enter server address. 
 			System.out.print("Enter host address/ip adress of server/: ");
-			inputReader = new Scanner(System.in);
+			inputReader = new Scanner(System.in, "UTF-8");
 			serverAddress = inputReader.nextLine();
 			if (serverAddress.length() == 0) {
 				throw new IllegalArgumentException("Server adress can not be empty string.");

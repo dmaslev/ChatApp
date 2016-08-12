@@ -2,6 +2,7 @@ package chat.server;
 
 import java.io.IOException;
 import java.net.BindException;
+import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -43,6 +44,11 @@ public class Server {
 		serverSideListeners = new ArrayList<>();
 	}
 
+	public ServersideListener getServersideListener(String recipient) {
+		ServersideListener listener = this.clients.get(recipient);
+		return listener;
+	}
+
 	/**
 	 * Prints information about all connected users.
 	 */
@@ -70,7 +76,7 @@ public class Server {
 	 *            The name of the user.
 	 * @param messageListener
 	 *            Message listener of the user.
-	 * @throws SQLException 
+	 * @throws SQLException
 	 */
 	synchronized String addUser(String name, ServersideListener listener) throws SQLException {
 		if (clients.containsKey(name)) {
@@ -100,8 +106,9 @@ public class Server {
 	 * connected users and closes the server socket.
 	 * 
 	 * @throws IOException
+	 * @throws SQLException
 	 */
-	void stopServer() throws IOException {
+	void stopServer() throws IOException, SQLException {
 		try {
 			serverSocket.close();
 		} catch (IOException ioException) {
@@ -112,7 +119,7 @@ public class Server {
 			System.err.println("Server socket on address: " + address + ", port: " + port + " was closed."
 					+ Logger.printError(ioException));
 		}
-		
+
 		isRunning = false;
 
 		synchronized (serverSideListeners) {
@@ -126,7 +133,6 @@ public class Server {
 					// The user is logged in. The username can be used to send
 					// disconnect message.
 					disconnectUser(username);
-					clients.remove(username);
 					continue;
 				}
 
@@ -148,8 +154,14 @@ public class Server {
 	 * 
 	 * @param name
 	 *            The name of the user to be disconnected.
+	 * @throws SQLException
 	 */
-	synchronized void disconnectUser(String name) {
+	synchronized void disconnectUser(String name) throws SQLException {
+		if (!this.clients.containsKey(name)) {
+			System.out.println(name + " is not connected.");
+			return;
+		}
+
 		Message shutDownMessage = new Message("disconnect", name, "admin", SystemCode.DISCONNECT);
 		messageDispatcher.addMessageToQueue(shutDownMessage);
 	}
@@ -207,7 +219,7 @@ public class Server {
 	 * @param args
 	 *            Server port. If null, default value is used.
 	 * @throws IOException
-	 * @throws SQLException 
+	 * @throws SQLException
 	 */
 	private void startServer(String[] args) throws IOException, SQLException {
 		isRunning = true;
@@ -216,7 +228,7 @@ public class Server {
 		// connected users.
 		// Coping the collection is needed for sending message to all users. The
 		// iteration is performed on the copy so new users can be added/removed
-		// to the original.
+		// from/to the original one.
 		TimerTask taskCopyClients = new TaskCopyClients(clients, copyClients);
 		Timer timer = new Timer();
 		// First copy is performed immediately and then every 300 000
@@ -224,7 +236,7 @@ public class Server {
 		timer.schedule(taskCopyClients, 0, 300000);
 
 		try {
-			Scanner reader= new Scanner(System.in);
+			Scanner reader = new Scanner(System.in);
 			isRunning = initializeServer(args, reader);
 
 			if (isRunning) {
@@ -234,16 +246,28 @@ public class Server {
 
 				waitForConnections();
 			}
-		} catch (SQLException e) {
-			throw new SQLException("Unable to connect to database server.", e);
+		} catch (SQLException sqlException) {
+			// Could not connect to the database server. The server has already been opened and must be closed.
+			serverSocket.close();
+			
+			throw new SQLException("Unable to connect to database server.", sqlException);
 		} catch (IOException ioException) {
-			isRunning = false;
-			throw new IOException(ioException);
-		} catch (IllegalArgumentException e) {
-			isRunning = false;
-			throw new IllegalArgumentException(e);
+			throw new IOException(
+					"Could not open the server socket or the server socket was closed while waiting for new connections",
+					ioException);
+		} catch (IllegalArgumentException illegalArgumentException) {
+			throw new IllegalArgumentException("The server was started with invalid parameters. +"
+					+ "Valid parameters contain only one integer number coresponding to the server socket port number. +"
+					+ "Providing more than one parameter is considered as invalid.", illegalArgumentException);
 		} finally {
 			timer.cancel();
+			if (messageDispatcher != null) {
+				messageDispatcher.shutdown();
+			}
+			
+			if (serverCommandDispatcher != null) {
+				serverCommandDispatcher.shutdown();
+			}
 		}
 	}
 
@@ -267,12 +291,14 @@ public class Server {
 				Socket socket = serverSocket.accept();
 				System.out.println(socket.getInetAddress() + " connected");
 
-				ServersideListener clientListener = new ServersideListener(socket, messageDispatcher, dbConnector, this);
+				ServersideListener clientListener = new ServersideListener(socket, messageDispatcher, dbConnector,
+						this);
 				clientListener.start();
 				serverSideListeners.add(clientListener);
 			} catch (IOException ioException) {
 				// Server socket was closed while waiting for connections.
-				String address = serverSocket.getLocalSocketAddress().toString();
+				String address = Inet4Address.getLocalHost().getHostAddress();
+
 				int port = serverSocket.getLocalPort();
 				throw new IOException("Server socket" + "(address: " + address + ", port: " + port + ") was closed.",
 						ioException);
@@ -280,7 +306,8 @@ public class Server {
 		}
 	}
 
-	private boolean initializeServer(String[] args, Scanner reader) throws IOException, IllegalArgumentException, SQLException {
+	private boolean initializeServer(String[] args, Scanner reader)
+			throws IOException, IllegalArgumentException, SQLException {
 		if (args == null) {
 			return false;
 		}
@@ -307,19 +334,18 @@ public class Server {
 		} catch (BindException bindException) {
 			throw new IOException("Port " + port + " is already in use.", bindException);
 		}
-		
+
 		System.out.println("Enter password for the database sever: ");
 		String password = "abcd1234";
 		dbConnector = new DBConnector(password);
-		dbConnector.connect();
+		try {
+			dbConnector.connect();
+		} catch (SQLException e) {
+			throw new SQLException("Could not connect to the database server. ", e);
+		}
 
 		printWelcomeMessage();
 		return true;
-	}
-
-	public ServersideListener getServersideListener(String recipient) {
-		ServersideListener listener = this.clients.get(recipient);
-		return listener;
 	}
 
 	public static void main(String[] args) throws IOException, SQLException {
