@@ -5,7 +5,10 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.math.BigInteger;
 import java.net.Socket;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Date;
@@ -45,6 +48,13 @@ public class ServersideListener extends Thread {
 	@Override
 	public void run() {
 		this.keepRunning = true;
+		MessageDigest mDigest = null;
+		try {
+			mDigest = MessageDigest.getInstance("SHA-256");
+		} catch (NoSuchAlgorithmException e1) {
+			System.err.println("Invalid name of algorithm requested by MessageDigest. " + Logger.printError(e1));
+			return;
+		}
 
 		try {
 			openResources();
@@ -52,12 +62,14 @@ public class ServersideListener extends Thread {
 			while (keepRunning) {
 				String messageType = input.readLine();
 				if (messageType == null || messageType.equals(SystemCode.LOGOUT)) {
-					return;
+					// Client has sent message to logout or closed the socket.
+					break;
 				}
 
 				String textReceived = input.readLine();
 				if (textReceived == null) {
-					return;
+					// The client socket was closed.
+					break;
 				}
 
 				if (messageType.equals(SystemCode.REGISTER)) {
@@ -67,17 +79,19 @@ public class ServersideListener extends Thread {
 					// Second check to ensure that no other user logged in with
 					// the same username between last check and the time current
 					// user is logged in.
-					resultCode = messageServer.addUser(textReceived, this);
 
-					if (resultCode.equals("0")) {
+					if (resultCode.equals(SystemCode.SUCCESSFUL_LOGIN)) {
 						try {
-							String sql = "INSERT INTO users (`username`, `password`) VALUES (?, ?)";
+							String sql = "INSERT INTO users (`username`, `password`) VALUES (?, SHA2(?, 256))";
 							Object[] params = new String[] { textReceived, password };
 							this.dbConnector.insert(sql, params);
+							resultCode = messageServer.addUser(textReceived, this);
 							loginUser(textReceived);
 						} catch (SQLException e) {
-							sendMessageToClient(resultCode);
-							throw new SQLException("Error occured while inserting elemnt in the database", e);
+							
+							resultCode = SystemCode.ALREADY_REGISTERED_USERNAME;
+							System.err.println("Comunication problem with the database server or "
+									+ "the user tried to register with already resigtered username: " + textReceived + Logger.printError(e));
 						}
 					}
 
@@ -93,14 +107,18 @@ public class ServersideListener extends Thread {
 					setUsername(textReceived);
 				} else if (messageType.equals(SystemCode.LOGIN)) {
 					String password = input.readLine();
+					mDigest.update(password.getBytes("UTF-8")); 
+					byte[] digest = mDigest.digest();
+					
+					String encryptedPassword = String.format("%064x", new BigInteger(1, digest));
 					String sql = "SELECT password FROM users WHERE username=?";
 					String[] params = new String[] { textReceived };
 					ResultSet resultSet = dbConnector.select(sql, params);
 					if (resultSet.next()) {
 						String userPassword = resultSet.getString("password");
-						if (password.equals(userPassword)) {
+						if (encryptedPassword.equals(userPassword)) {
 							String isUserLoggedIn = messageServer.addUser(textReceived, this);
-							if (isUserLoggedIn.equals("1")) {
+							if (isUserLoggedIn.equals(SystemCode.ALREADY_LOGGED_IN)) {
 								// The user is already logged in.
 								sendMessageToClient(SystemCode.ALREADY_LOGGED_IN);
 								continue;
@@ -143,7 +161,7 @@ public class ServersideListener extends Thread {
 				try {
 					insertLogoutEntry();
 				} catch (SQLException e) {
-					System.err.println("User +" + username + "has disconnected. "
+					System.err.println("User +" + username + " has disconnected. "
 							+ "Error occured while inserting loggout entry in the database." + Logger.printError(e));
 				}
 			}
@@ -178,12 +196,16 @@ public class ServersideListener extends Thread {
 		int port = clientSocket.getLocalPort();
 
 		try {
-			input.close();
+			if (input != null) {
+				input.close();
+			}
 		} catch (IOException e) {
 			System.err.println("Unable to close outer input stream for user: " + username + ", address: " + address
 					+ ", port: " + port + Logger.printError(e));
 			try {
-				inputInner.close();
+				if (inputInner != null) {
+					inputInner.close();
+				}
 			} catch (IOException e1) {
 				System.err.println("Unable to close inner input stream for user: " + username + ", address: " + address
 						+ ", port: " + port + Logger.printError(e1));
@@ -191,13 +213,17 @@ public class ServersideListener extends Thread {
 		}
 
 		try {
-			output.close();
+			if (output != null) {
+				output.close();
+			}
 		} catch (IOException e) {
 			System.err.println("Unable to close outer output stream for user: " + username + ", address: " + address
 					+ ", port: " + port + Logger.printError(e));
 
 			try {
-				outputInner.close();
+				if (outputInner != null) {
+					outputInner.close();
+				}
 			} catch (IOException e1) {
 				System.err.println("Unable to close inner output stream for user: " + username + ", address: " + address
 						+ ", port: " + port + Logger.printError(e1));
@@ -222,7 +248,6 @@ public class ServersideListener extends Thread {
 	}
 
 	private void insertLogoutEntry() throws SQLException {
-		System.out.println("log test");
 		String ip = getIP();
 		Date date = new Date();
 		String sql = "INSERT INTO logouts (`id_user_logout`, `ip`, `date_logged_out`) SELECT id_users, ?, ? FROM users WHERE  username=?;";
@@ -256,7 +281,7 @@ public class ServersideListener extends Thread {
 
 	private void loginUser(String username) throws SQLException {
 		String sql = "INSERT INTO connections (`id_user`, `ip`, `date_logged_in`) SELECT id_users, ?, ? FROM users WHERE username=?;";
-		String ip = this.clientSocket.getInetAddress().toString();
+		String ip = getIP();
 		Date dateLoggedIn = new Date();
 		Object[] params = new Object[] { ip, dateLoggedIn, username };
 

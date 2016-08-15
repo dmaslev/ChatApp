@@ -67,7 +67,7 @@ public class MessageSender implements Runnable {
 	 * A method used to send system message to only client.
 	 * 
 	 * @param recipient
-	 *            The username of recipient.
+	 *            The name of the recipient.
 	 * @param textMessage
 	 *            Information message for the client.
 	 * @throws IOException
@@ -137,11 +137,11 @@ public class MessageSender implements Runnable {
 			out.flush();
 
 		} catch (IOException ioException) {
-			// Send message back to the sender to inform that the message was
+			// Send message back to the sender to inform that the original message was
 			// not sent.
 			String text = "Failed to send message to: " + recipient;
 			sendMessageToOneUser(sender, text, "admin");
-			throw new IOException("Unable to send the message to " + recipient, ioException);
+			throw new IOException("Unable to send the message to: " + recipient, ioException);
 		}
 	}
 
@@ -150,6 +150,7 @@ public class MessageSender implements Runnable {
 		Object[] params = new Object[] { sender };
 		int userOne = 0;
 		int userTwo = 0;
+		String sql = new String();
 		try {
 			ResultSet resultSet = server.getDbConnector().select(selectUser, params);
 			if (resultSet.next()) {
@@ -167,12 +168,12 @@ public class MessageSender implements Runnable {
 				}
 			}
 			
-			String sql = "INSERT INTO messages (`text`, `date`, `sender`, `recipient`) VALUES (?, ?, ?, ?)";
+			sql = "INSERT INTO messages (`text`, `date`, `sender`, `recipient`) VALUES (?, ?, ?, ?)";
 			Date currentDate = new Date();
 			params = new Object[] { text, currentDate, userOne, userTwo };
 			server.getDbConnector().insert(sql, params);
 		} catch (SQLException e) {
-			throw new SQLException("Connection with the database lost.", e);
+			throw new SQLException("Unable to execute sql query: " + sql, e);
 		}
 	}
 }

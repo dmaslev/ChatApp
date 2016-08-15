@@ -108,7 +108,7 @@ public class Server {
 	 * @throws IOException
 	 * @throws SQLException
 	 */
-	void stopServer() throws IOException, SQLException {
+	void stopServer() throws IOException {
 		try {
 			serverSocket.close();
 		} catch (IOException ioException) {
@@ -145,7 +145,6 @@ public class Server {
 
 		serverCommandDispatcher.shutdown();
 		messageDispatcher.shutdown();
-		System.out.println("Server successfully disconnected.");
 	}
 
 	/**
@@ -154,9 +153,8 @@ public class Server {
 	 * 
 	 * @param name
 	 *            The name of the user to be disconnected.
-	 * @throws SQLException
 	 */
-	synchronized void disconnectUser(String name) throws SQLException {
+	synchronized void disconnectUser(String name) {
 		if (!this.clients.containsKey(name)) {
 			System.out.println(name + " is not connected.");
 			return;
@@ -200,7 +198,7 @@ public class Server {
 		if (!Character.isAlphabetic(name.charAt(0))) {
 			resultCode = "4";
 		} else if (this.clients.containsKey(name)) {
-			resultCode = "1";
+			resultCode = "7";
 		} else if (name.length() < 3) {
 			resultCode = "2";
 		} else if (name.equalsIgnoreCase("admin") || name.equalsIgnoreCase("administrator")) {
@@ -222,8 +220,6 @@ public class Server {
 	 * @throws SQLException
 	 */
 	private void startServer(String[] args) throws IOException, SQLException {
-		isRunning = true;
-
 		// TaskCopyClients is responsible for coping the collection with all
 		// connected users.
 		// Coping the collection is needed for sending message to all users. The
@@ -248,7 +244,11 @@ public class Server {
 			}
 		} catch (SQLException sqlException) {
 			// Could not connect to the database server. The server has already been opened and must be closed.
-			serverSocket.close();
+			try {
+				serverSocket.close();
+			} catch (IOException ioException) {
+				System.err.println("Error occured while closing the server socket. " + Logger.printError(ioException));
+			}
 			
 			throw new SQLException("Unable to connect to database server.", sqlException);
 		} catch (IOException ioException) {
@@ -268,6 +268,8 @@ public class Server {
 			if (serverCommandDispatcher != null) {
 				serverCommandDispatcher.shutdown();
 			}
+			
+			System.out.println("Server successfully disconnected.");
 		}
 	}
 

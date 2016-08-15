@@ -83,13 +83,17 @@ public class ClientMessageListener implements Runnable {
 
 	void closeResources() throws IOException {
 		try {
-			listener.close();
+			if (listener != null) {
+				listener.close();
+			}
 		} catch (IOException ioException) {
 			System.err.println(
 					"Closing the input stream failed. Close the inner stream." + Logger.printError(ioException));
 
 			try {
-				innerStream.close();
+				if (innerStream != null) {
+					innerStream.close();
+				}
 			} catch (IOException e) {
 				System.err.println("Closing the innter input stream failed. " + Logger.printError(e));
 			}
@@ -152,9 +156,6 @@ public class ClientMessageListener implements Runnable {
 		case "0":
 			message = "Successfully logged in.";
 			break;
-		case "1":
-			message = "Selected username is already in use. Please select a new one.";
-			break;
 		case "2":
 			message = "Username must be at least 3 characters long.";
 			break;
@@ -169,6 +170,9 @@ public class ClientMessageListener implements Runnable {
 			break;
 		case "6":
 			message = "This user is already logged in.";
+			break;
+		case "7":
+			message = "This user is already registered.";
 			break;
 		default:
 			message = "Unknown system code.";

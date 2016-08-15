@@ -39,9 +39,9 @@ public class ServerCommandDispatcher extends Thread {
 					server.printConnectedUsers();
 				} else if (line.equalsIgnoreCase("/show full history")) {
 					System.out.println("Enter start and end date on seperated lines in format YYYY-MM-DD HH:mm:ss "
-							+ "or /skip to see full history for selected users.");
+							+ "or /all to see full history for selected users.");
 					String startDate = reader.nextLine();
-					if (startDate.equals("/skip")) {
+					if (startDate.equals("/all")) {
 						showFullHistory();
 						continue;
 					}
@@ -77,29 +77,33 @@ public class ServerCommandDispatcher extends Thread {
 
 	private void showFullHistoryTimePeriod(String startDate) throws SQLException {
 		String endDate = reader.nextLine();
-		String sql = "SELECT * FROM (" + "SELECT date_logged_in as date, id_user, 'login' as type, ip as text "
-				+ "FROM connections " + "union " + "SELECT date as date, recipient, 'received' as type, text "
-				+ "FROM  messages  " + "UNION SELECT date, recipient, 'sent', text FROM messages "
-				+ "union  " + "SELECT date_logged_out as date, id_user_logout, 'logout', ip  "
-				+ "FROM logouts) " + "as result " + "WHERE result.date >= ? AND result.date <= ? ORDER BY date;";
+		
+		String sql = "SELECT * FROM (SELECT date_logged_in as date, id_user, 'login' as type, ip as text "
+				+ "FROM connections union SELECT date as date, recipient, 'received' as type, text "
+				+ "FROM  messages  UNION SELECT date, recipient, 'sent', text FROM messages union  "
+				+ "SELECT date_logged_out as date, id_user_logout, 'logout', ip  FROM logouts) as result "
+				+ "WHERE result.date >= ? AND result.date <= ? ORDER BY date;";
 		String[] params = new String[] { startDate, endDate };
 
-		ResultSet resultSet = server.getDbConnector().select(sql, params);
-		printResultSet(resultSet);
+		try {
+			ResultSet resultSet = server.getDbConnector().select(sql, params);
+			printResultSet(resultSet);
+		} catch (SQLException e) {
+			throw new SQLException("Unable to execute the sql query: " + sql, e);
+		}
 	}
 
 	private void showFullHistory() throws SQLException {
 		String sql = "SELECT date_logged_in as date, id_user, 'login' as type,  ip as text FROM connections "
-				+ "UNION SELECT date, recipient, 'sent', text FROM  messages "  
+				+ "UNION SELECT date, recipient, 'sent', text FROM  messages "
 				+ "UNION SELECT date, sender, 'received', text FROM messages "
-				+ "UNION SELECT date_logged_out as date, id_user_logout, 'logout', ip FROM logouts " 
-				+ "order by date;";
+				+ "UNION SELECT date_logged_out as date, id_user_logout, 'logout', ip FROM logouts ORDER BY date";
 		String[] params = new String[] {};
 		try {
 			ResultSet resultSet = server.getDbConnector().select(sql, params);
 			printResultSet(resultSet);
 		} catch (SQLException sqlException) {
-			throw new SQLException("Unable to execute the sql query", sqlException);
+			throw new SQLException("Unable to execute the sql query: " + sql, sqlException);
 		}
 	}
 
@@ -143,49 +147,42 @@ public class ServerCommandDispatcher extends Thread {
 			System.out.println("No information found. ");
 			return;
 		}
-		
+
 		System.out.println(sBuilder.toString());
 	}
 
 	private void showHistory(String usersAsString) throws SQLException {
 		String[] users = usersAsString.split("\\s*,\\s*");
 
-		System.out.println("Enter start and end date on seperated lines in format YYYY-MM-DD HH:mm:ss "
-				+ "or /skip to see full history for selected users.");
-		String firstDate = reader.nextLine();
 		String sql = "SELECT * FROM "
 				+ "(SELECT date_logged_in AS date, id_user, 'login' AS type, ip AS text FROM connections "
 				+ "UNION SELECT  date, sender, 'sent', text FROM messages "
 				+ "UNION SELECT date, recipient, 'received', text FROM messages "
 				+ "UNION SELECT date_logged_out AS date, id_user_logout, 'logout', ip FROM logouts) "
-				+ "AS result WHERE ";
+				+ "AS result JOIN users u on result.id_user = u.id_users WHERE ";
 
 		StringBuilder sBuilder = new StringBuilder();
 		boolean isFirstElement = true;
 		for (String user : users) {
-			String sqlUserName = "SELECT id_users FROM users WHERE username = ?;";
-			Object[] params = new Object[] { user };
-			ResultSet rSet = server.getDbConnector().select(sqlUserName, params);
-			if (rSet.next()) {
-				int idUser = rSet.getInt("id_users");
-				if (!isFirstElement) {
-					sBuilder.append(" or ");
-				}
-
-				sBuilder.append("id_user=" + idUser);
-
+			if (!isFirstElement) {
+				sBuilder.append(" OR ");
 			}
+
+			sBuilder.append("u.username = '" + user + "' ");
 
 			isFirstElement = false;
 		}
 		
+		System.out.println("Enter start and end date on seperated lines in format YYYY-MM-DD HH:mm:ss "
+				+ "or /all to see full history for selected users.");
+		String firstDate = reader.nextLine();
 		Object[] params = new Object[] {};
-		if (!firstDate.equals("/skip")) {
+		if (!firstDate.equals("/all")) {
 			String secondDate = reader.nextLine();
 			if (sBuilder.length() != 0) {
 				sBuilder.append(" AND ");
 			}
-			
+
 			sBuilder.append(" result.date >= ? AND result.date <= ? ");
 			params = new Object[] { firstDate, secondDate };
 		}
